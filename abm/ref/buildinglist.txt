@@ -1,0 +1,80 @@
+Apothecary
+	unlock_office: no
+	base_cost: 6
+	spaces: 2
+	num_cards: 2
+	generates: nothing
+	special: "for each occupied space, select one family member in play to save in the event of a plague"
+Bank
+	unlock_office: "Lord Treasurer"
+	base_cost: 8
+	spaces: 1
+	num_cards: 1
+	generates: +2 gold
+	special: "none"
+Barracks
+	unlock_office: "Commander"
+	base_cost: 6
+	spaces: 4
+	num_cards: 1
+	generates: nothing
+	special: "if Commander has own workers in Barracks and vacates another building, they may occupy the new building as a free action"
+Church
+	unlock_office: "High Priest"
+	base_cost: 6
+	spaces: 4
+	num_cards: 2
+	generates: +1 prestige every two workers
+	special: "none"
+Crypt
+	unlock_office: no
+	base_cost: free
+	spaces: unlimited
+	num_cards: 1
+	generates: nothing
+	special: "none"
+Dungeon
+	unlock_office: no
+	base_cost: free
+	spaces: 3
+	num_cards: 1
+	generates: nothing
+	special: "family must pay 1 food per turn for any prisoner upkeep or they starve"
+Farm
+	unlock_office: no
+	base_cost: 4
+	spaces: 2
+	num_cards: 5
+	generates: +1 food per occupied space, +3 if one family owns both spaces
+Guild Hall
+	unlock_office: no
+	base_cost: 6
+	spaces: 1
+	num_cards: 2
+	generates: +1 reputation
+Market
+	unlock_office: no
+	base_cost: 6
+	spaces: 3
+	num_cards: 1
+	generates: +1 per worker
+	special: "buy and sell food, base cost of 1 gold = 2 food.",
+			 "Lord Treasurer may collect +1 gold for every trade if they occupy market with worker"
+Mercenary Camp
+	unlock_office: no
+	base_cost: 6
+	spaces: 1
+	num_cards: 1
+	generates: nothing
+Mines
+	unlock_office: no
+	base_cost: 10
+	spaces: 2
+	num_cards: 1
+	generates: +1 gold per occupied space, +4 gold and +1 rep if one family owns both spaces
+Tavern
+	unlock_office: Spymaster
+	base_cost: 4
+	spaces: 3
+	num_cards: 1
+	generates: nothing

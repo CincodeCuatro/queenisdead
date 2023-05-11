@@ -1,0 +1,44 @@
+{
+  "Retainers": [
+    {
+      "name": "Barber",
+      "description": "The Barber provides a prestige bonus for well kept nobles but beware he may also be an assassin",
+      "image": "barber.jpg",
+      "point_value": "10",
+      "abilities": [
+        "claim +2 pretige as an action on your turn",
+        "assassinate holder if revealed by eunuch"
+      ]
+    },
+    {
+      "name": "Bard",
+      "description": "Entertains the court",
+      "image": "bard.jpg",
+      "point_value": "8",
+      "abilities": [
+        "Choose an adjacent family character to insult, resulting in -2 prestige",
+        ""
+      ]
+    },
+    {
+      "name": "Body Guard",
+      "description": "Protects holder from assasin retainers",
+      "image": "bodyguard.jpg",
+      "point_value": "12",
+      "abilities": [
+        "Negates effect of assasins targeting the holder",
+        ""
+      ]
+    },
+    {
+      "name": "Courtesan",
+      "description": "Entertains the court, ",
+      "image": "bard.jpg",
+      "point_value": "8",
+      "abilities": [
+        "Saucy puppet show, collect +1 gold from all adjacent players",
+        "assassinate holder if revealed"
+      ]
+	}
+  ]
+}

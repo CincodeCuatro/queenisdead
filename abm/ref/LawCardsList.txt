@@ -1,0 +1,33 @@
+Law Cards
+
+name: "Double Taxation"
+description: "Lord Treasurer now collects +4 on inspections, and +2 gold and +4 food from each player"
+effect: "Lord Treasurer collects +4 on inspection, and +2 gold and +4 food from each player as Tax"
+
+name: "Triple Taxation"
+description: "Lord Treasurer now collects +6 on inspections and +4 gold and +6 food from each player"
+effect: "Lord Treasurer collects +6 on inspection, and +4 gold and +6 food from each player as Tax" 
+
+name: "Matriarchy"
+description: "Only female characters may hold power"
+effect: "Only female characters may occupy the Crown and lower offices"
+
+name: "Farm Tax"
+description: "For every food produced, +1 must go automatically to the Royal Treasury"
+effect: "Each time food is produced, +1 must go directly to the Royal Treasury"
+
+name: "Honour among Thieves"
+description: "All contributors to Realm Upkeep earn prestige."
+effect: "all contributors to Realm Upkeep will gain +1 prestige. Highest contributor gains +3"
+
+name: "Royal Seizure" 
+description: "As an action, the Crown may vacate a building of its workers and replace with 1 of any players workers"
+effect: "Crown can vacate a building and replace its worker population with 1 of any players workers."
+
+name: "Tithes"
+description: "Pay to pray"
+effect: "every worker attending church now gains +1 prestige for +1 gold paid directly to the High Priest"
+
+name: "Vassalage"
+description: "Losers of Challenges will now have to give winner an Oath card if available"
+effect: "Loser of Challenges must give winner one of their Oath cards if available"

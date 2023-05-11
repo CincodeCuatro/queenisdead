@@ -1,0 +1,74 @@
+
+
+Barber
+	num_cards: 2
+	perk(self): +2 prestige "Well manicured"
+	drawback: death
+	action: none
+	passive: none
+Bard
+	num_cards: 2
+	perk(self|adjacent): +2 prestige "Sing praise" for self, or -2 for adjacent target
+	drawback: character gets punished
+	action: none
+	passive: none
+Barrister
+	num_cards: 1
+	perk: none
+	drawback: for imprisioned death, and for campaigning punishment
+	action: none
+	passive(imprisoned|campaigning): negate upkeep cost for character in prison or on campaign
+Bodyguard
+	num_cards: 2
+	perk: none
+	drawback: none
+	action: none
+	passive(self): Protect master from Rogue 
+Courtesan
+	num_cards: 1
+	perk(all adjacent): take one gold from all adjacent characters
+	drawback: lose an additional 2 prestige
+	action: none
+	passive: none
+Cupbearer
+	num_cards: 2
+	perk(self): +1 food
+	drawback: lose 5 food
+	action: none
+	passive: protects from poison from Doctor
+Eunuch ???
+	num_cards: 1
+	perk(self): +2 prestige
+	drawback: none
+	action: visit tavern and start a plot. Draw a crisis card and any player visiting the tavern may pay into the plot but not look. When 30 gold has been contributed, reveal and resolve the crisis card. 
+	target: reveal assassins in play (barber, courtesan, rogue) resolve, and discard all relevant cards.
+Huntmaster
+	num_cards: 1
+	perk(self): +3 food "Successful hunt"
+	drawback: master may befall a hunting 'accident' if revealed
+	action: none
+	passive: none
+Jester
+	num_cards: 1
+	perk(self&adjacent): +1 gold
+	drawback: none
+	action(adjacent): swap the target retainer with an a new random retainer from the deck
+	passive: none
+Monk
+	num_cards: 1
+	perk(self): +1 food, +1 prestige
+	drawback: revealed as heretic, punish master
+	action: none
+	passive: none
+Physician
+	num_cards: 1
+	perk(self): +2 prestige
+	drawback: poisons master
+	target:	poison, pay 10 gold to send adjacent family character back to players hand
+	passive: none
+Rogue:
+	num_cards: 1
+	perk: none
+	drawback: assassinates master if revealed
+	action(any character): pay 25 gold and select any character to assassinate
+	passive: none

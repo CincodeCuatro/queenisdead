@@ -1,0 +1,42 @@
+Crisis Cards
+
+name: "Arson"
+description: Arson
+effect: return all buildings to the building deck and shuffle, any family characters occupying buildings have perished. 
+
+name: "Blight"
+description: "Famine, farms will not produce food this year."
+effect: "Farms generate no resources, regardless of season until next year."
+
+name: "Curious Sickness"
+description: "
+effect: "The two high ranked family characters of each player die unless they have Physician retainer or worker in apothecary." 
+
+name: "Invasion"
+description: "A foreign invader has taken advantage of our situation, each family must go on campaign to defend the realm."
+effect: "Each player selects a family character to go on Campaign. Roll a die to determine their fate. Result of 3 or lower is death and half the gold is lost.
+		If the majority of characters are killed on campaign, roll a die to determine how much of the Capitol is destroyed. Result is even or odd number, 
+		destroy buildings on even/odd numbered building plots, kill any occupying family characters and return building cards to deck.
+		If majority of rolls succeed, each survivor on campaign gains 10 prestige"
+
+name: "Powder Plot"
+description: "Conspirators have laced the Royal Court with explosives and lit the fuse"
+effect: "Each family character present in the Royal and Lower court has been killed."
+
+name: "Riot"
+description: "The lower classes have rebelled"
+effect: "Reveal all retainers in play and resolve negative effects of their owners, shuffle and return to retainer deck."
+
+name: "Rat King"
+description: 'A plague of rats has entered the capitol feasting on our grain stores"
+effect: "Remove half the food (round up) from all players including the Royal Treasury"
+
+name: "Regicide" 
+description: "The Crown has suddenly dropped dead under suspicious circumstances."
+effect: "Family character occupying the throne is dead. Heir may take their place, otherwise resolve via challenge"
+
+name: "Plague"
+description: "Plague has struck the Realm"
+effect: "Each player rolls a die for each of their family characters in play. Result of 3 or less is death unless Physician retainer. For every worker in the apothecary, player may choose one family character to survive"
+
+

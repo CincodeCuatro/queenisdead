@@ -1,0 +1,62 @@
+
+
+Barber
+	num_cards: 2
+	perk: +2 prestige "Well manicured"
+	drawback: assassinates owner if revealed
+	target: none
+Bard
+	num_cards: 2
+	perk: +2 prestige "Sing praise" for self, or -2 for adjacent target
+	drawback: none
+	target: adjacent character
+Barrister
+	num_cards: 1
+	perk: negate upkeep cost for character in prison or on campaign
+	drawback:
+	target: none
+Bodyguard
+	num_cards: 2
+	perk: Protect master from Rogue 
+	drawback: none
+	target: Remove any adjacent retainer in court and discard it along with this card
+Courtesan
+	num_cards: 1
+	perk: +1 gold all adjacent characters
+	drawback: may assassinate owner if revealed
+	target: adjacent family characters
+Cupbearer
+	num_cards: 2
+	perk: +1 food, protects from poison
+	drawback: none
+	target: none
+Eunuch
+	num_cards: 1
+	perk: +2 prestige, visit tavern and start a plot. Draw a crisis card and any player visiting the tavern may pay into the plot but not look. When 30 gold has been contributed, reveal and resolve the crisis card. 
+	drawback:
+	target: reveal assassins in play (barber, courtesan, rogue) resolve, and discard all relevant cards.
+Huntmaster
+	num_cards: 1
+	perk: +3 food "Successful hunt"
+	drawback: owner may befall a hunting 'accident' if revealed
+	target: none
+Jester
+	num_cards: 1
+	perk: swap this retainer with an adjacent retainer card
+	drawback:
+	target: choose adjacent family member with retainer card to swap with
+Monk
+	num_cards: 1
+	perk: +1 food, +1 prestige
+	drawback: revealed as heretic, imprison owner
+	target:
+Physician
+	num_cards: 1
+	perk: +2 prestige
+	drawback: 
+	target:	poison, pay 10 gold to send adjacent family character back to players hand
+Rogue:
+	num_cards:1 
+	perk:
+	drawback: may assassinate owner if revealed
+	target: pay 25 gold and select adjacent family character to assassinate
