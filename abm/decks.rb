@@ -10,7 +10,7 @@ class Deck
     end
 
     # Add N new instances of the provided card-class to this deck
-    def add_cards(card, n) = @cards.concat(Array.new(n) { card.new })
+    def add_cards(card, n) = @cards.concat(Array.new(n) { card.new(self) })
 
     # Take N cards off the top of the deck
     def draw(n=1) = @cards.pop(n)
@@ -41,6 +41,30 @@ class BuildingsDeck < Deck
     add_cards(MercenaryCamp, 1)
     add_cards(Mine, 1)
     add_cards(Tavern, 1)
+    @cards.shuffle!
+  end
+end
+
+
+
+######################
+### Retainers Deck ###
+######################
+
+class RetainersDeck < Deck
+  def initialize
+    add_cards(Barber, 2)
+    add_cards(Bard, 2)
+    add_cards(Barrister, 2)
+    add_cards(Bodyguard, 2)
+    add_cards(Courtesan, 1)
+    add_cards(Cupbearer, 2)
+    add_cards(Eunuch, 1)
+    add_cards(Huntmaster, 1)
+    add_cards(Jester, 1)
+    add_cards(Monk, 2)
+    add_cards(Physician, 1)
+    add_cards(Rogue, 1)
     @cards.shuffle!
   end
 end

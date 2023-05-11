@@ -4,7 +4,7 @@
 #############################
 
 ### Parent class for cards
-class Card
+class Card < BoardItem
 end
 
 ### Building cards
