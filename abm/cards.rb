@@ -4,7 +4,7 @@
 #############################
 
 ### Parent class for cards
-class Card < BoardItem
+class Card < Piece
 end
 
 ### Building cards
@@ -21,20 +21,56 @@ class Building < Card
     @manager = nil # The character that is managing this building (if any)
   end
 
+  # Reset and reshuffle this card back into the deck
+  def reshuffle
+    @deck.tuck(self)
+    initialize(@deck)
+  end
+
   # Apply building effects to relevant players
   def output
   end
 
+  ## TODO: Implement
+  def build(pos)
+
+  end
+
   # Called when this building is destroyed and put back into the deck
   # If the building has a manager, they get killed
+  # Move all workers back to their player's hand
   # The exception is if office_unlock is not nil, in this case the building is permanent
   def destroy
     if @office_unlock.nil?
-      @manager.kill if !@manager.nil?
-      @deck.tuck(self)
-      initialize
+      @manager&.kill
+      @workers.each { |w| w.move(nil) }
+      reshuffle
     end
   end
+
+  # Make the provided character this building's manager (if there isn't already a manager)
+  def place_character(character)
+    raise "Building already has a manager #{@manager}" if !@manager.nil?
+    @manager = character
+  end
+
+  # Remove the current manager
+  def remove_character(_character)
+    raise "Building has no manager" if @manager.nil?
+    @manager = nil
+  end
+
+  # Add the provided worker to this card's worker pool (if there's capacity for it)
+  def place_worker(worker)
+    raise "Building already at max worker capacity" if @workers.length >= @worker_num
+    @workers << worker
+  end
+
+  # Remove the provided worker from this card's worker pool
+  def remove_worker(worker)
+    raise "Worker not positioned here" if !@workers.delete(worker)
+  end
+
 end
 
 
@@ -48,6 +84,13 @@ class Retainer < Card
     @deck = deck # The retainer-deck this card belongs to 
     @master = nil # The character this retainer is attached to
     @bluff = nil # An instance of another retainer card that this one is bluffing (if any)
+  end
+  
+  # Return this card to the retainer deck, remove it from its master, and reset it
+  def reshuffle
+    @master&.remove_retainer
+    @deck.tuck(self)
+    initialize(@deck)
   end
 
   # The class of this retainer card (if face up)
@@ -99,12 +142,6 @@ class Retainer < Card
     bluff = nil
   end
 
-  # Return this card to the retainer deck, remove it from its master, and reset it
-  def return_to_deck
-    @deck.tuck(self)
-    master.retainer = nil
-    initialize
-  end
 end
 
 

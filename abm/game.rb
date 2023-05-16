@@ -15,3 +15,55 @@ If every member of a single family Dynasty is imprisoned or killed, the current 
 Else, the one who holds the throne at the end of the 5th year wins.
 
 =end
+
+
+=begin MOCKUP GAME INTERFACE
+
+GAME:
+    
+    
+CHARACTER:
+    move(location, pos=nil)
+    place_retainer(retainer)
+    remove_retainer
+    kill
+
+WORKER:
+    move(location)
+
+RETAINER:
+    reshuffle
+    move(location)
+
+BUILDING:
+    reshuffle
+    build(pos)
+    destroy
+    place_character(character)
+    place_worker(worker)
+    remove_character(character)
+    remove_worker(worker)
+
+CRYPT:
+    place_character(character)
+    remove_character(character)
+
+CAMPAIGN:
+    place_character(character)
+    remove_character(character)
+
+COURT:
+    place_character(character, pos)
+    remove_character(character)
+
+DUNGEON:
+    place_character(character)
+    remove_character(character)
+
+BUILDING_PLOTS:
+    place_building(building)
+    remove_building(building)
+
+
+
+=end

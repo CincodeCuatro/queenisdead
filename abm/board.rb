@@ -111,24 +111,23 @@ class Board
 end
 
 
-# An item on the board (a playing piece, or card) that has a location and can be moved
-class BoardItem
 
-  attr_reader :location
 
-  def move_to(target, pos=nil)
-    raise "Can't move there: #{location}" if (!pos.nil?) ? !target.can_move_to?(pos) : !target.can_move_to?
-    @location.remove(self) if !@location.nil?
-    @location = target
-    target.add(self)
-  end
+
+# Interface for objects which can have things placed on them
+module BoardLocation
+  # Place item on this board location (with optional position)
+  def place(item, pos=nil) = raise "Not implemented"
+
+  # Remove item from this board position
+  def unplace()
 
 end
 
 
 
-# Container for board-items
-class Location
+# Container for board-items with not adjacency or capacity
+class Crypt
 
   attr_reader :name
 
@@ -142,6 +141,7 @@ class Location
   end
 
   def add(a)
+    raise "Wrong board item type" if !a.is_a?(Character)
     @contents << a
   end
 
@@ -156,7 +156,7 @@ class Location
 end
 
 
-class Campaign < Location
+class Campaign < Crypt
 
   def initialize(name, capacity)
     super(name)
@@ -170,7 +170,7 @@ class Campaign < Location
 end
 
 
-class Dungeon < Location
+class Dungeon < Crypt
 
   def initialize(name, capacity)
     super(name)
@@ -186,12 +186,20 @@ end
 
 
 # Container for characters, with sub areas
-class Spaces < Location
+class Court
 
-  def initialize(name, size, )
+  def initialize(name, @capacity)
     super(name)
-    @size = size
-    @spaces = Array.new(@size, nil)
+    @capacity = capacity
+    @spaces = Array.new(@capacity, nil)
+  end
+
+  def at(pos)
+    @spaces[pos % @spaces.length]
+  end
+
+  def can_move_to?(pos)
+    at(pos).nil?
   end
 
   def pos_of(a)
@@ -209,19 +217,15 @@ class Spaces < Location
     @spaces.map { |space| space.is_a?(type) }.any?
   end
 
-  def at(pos)
-    @spaces[pos]
-  end
-
-  def place(a, pos)
-    #raise "Place if !at(pos).nil?
-    at(pos).place(a) if at(pos).has_method?(:place)
+  def add(a, pos)
+    raise "Wrong board item type" if !a.is_a?(Character)
     @spaces[pos] = a
   end
 
-  def place_on(a, pos)
-    raise "Nothing to place on here:#{pos}" if at(pos).nil?
-    at(pos).attach(a)
+  def remove(a)
+    pos = pos_of(a)
+    raise "No item #{a} in Court" if pos.nil?
+    @spaces[pos] = nil
   end
 
 end
