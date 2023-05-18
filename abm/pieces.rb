@@ -8,6 +8,10 @@ class Piece
     @location = nil
   end
 
+  def set_location(location)
+    @location = location
+  end
+
 end
 
 # A Character card
@@ -16,52 +20,53 @@ class Character < Piece
   attr_reader :player, :gender, :retainer
 
   # Init
-  def initialize(player, gender)
+  def initialize(player, gender=nil)
     super
     @player = player
-    @gender = gender
-    @retainer = nil
+    @gender = gender || [:male, :female].sample
+    @retainer = Slot.new("Character_#{object_id}_retainer")
     return self
   end
 
-  # If target is a Building, Crypt, Campain, Dungeon, or Court: places the card on that location
-  # If target is nil, returns this character card to the player's hand
-  # Always calls .remove_character(self) on the current @location (if it's not nil)
-  # In case the move is to the court, a position argument may be supplied
-  def move(target, pos=nil)
-    @location&.remove_character(self)
-    if target.nil?
-      @location = nil
-    else
-      if ![Building, Crypt, Campaign, Dungeon, Court].map { |p| target.is_a?(p) }.any?
-        raise "#{target} is not a place for a character"
-      end
-      pos ? target.place_character(self, pos) : target.place_character(self)
-      @location = target
+  def move(location, pos=nil)
+    @location&.remove(self)
+    b = @player.game.board
+    case location
+      when :crypt; b.crypt.add(self); set_location(b.crypt)
+      when :dungeon; b.dungeon.add(self); set_location(b.dungeon)
+      when :campaign; b.campaign.add(self); set_location(b.campaign)
+      when :court; b.court.set(self, pos); set_location(b.court.get_slot(pos))
+      when :building; bld = b.buildings.get(pos); bld&.set_manager(self); set_location(bld&.manager) 
+      when :crown; b.crown.set(self); set_location(b.crown)
+      when :priest; b.priest.set(self); set_location(b.priest)
+      when :commander; b.commander.set(self); set_location(b.commander)  
+      when :spymaster; b.spymaster.set(self); set_location(b.spymaster)
+      when :treasurer; b.treasurer.set(self); set_location(b.treasurer)
+      when :heir; b.heir.set(self); set_location(b.heir)
+      when nil; set_location(nil)
+      else raise "Unknown location: #{location}"
     end
-    return self
   end
 
-  # Place a retainer card on this character card
-  def place_retainer(retainer)
-    remove_retainer if !@retainer.nil?
-    @retainer = retainer
-    return self
-  end
-
-  # Removes the retainer card on this character card
-  def remove_retainer
-    @retainer = nil
-    return self
-  end
-
-  # TODO: Implement
   def kill
-    @retainer&.reshuffle
-    move(player.game.board.crypt)
-    return self
+    @retainer.contents&.reshuffle
+    move(:crypt)
+  end
+
+  def punish
+    case @player.game.board.sentencing
+      when :fine; @player.take({ gold: 10 }); @player.game.board.priest.contents&.give({ gold: 10 })
+      when :prison;
+        d = @player.game.board.dungeon.contents
+        dl = d.length
+        d.push(*[nil, nil]) if dl == 0
+        d.push(nil) if dl == 1
+        move(:dungeon)
+      when :death; kill
+    end
   end
 end
+
 
 # A Worker piece, will be owned by a Player
 # May be placed on a building card (in play)
@@ -76,16 +81,13 @@ class Worker < Piece
 
   # Places this worker on the specified building
   # If target is nil, returns this worker to the player's hand
-  # Always calls .remove_worker(self) on the current @location (if it's not nil)
   def move(building)
-    @location&.remove_worker(self)
+    @location&.workers.remove(self)
     if building.nil?
-      @location = nil
+      set_location(nil)
     else
-      raise "#{building} is not a building" if !building.is_a?(Building)
-      building.place_worker(self)
-      @location = building
+      building.workers.add(self)
+      set_location(building.workers)
     end
-    return self
   end
 end

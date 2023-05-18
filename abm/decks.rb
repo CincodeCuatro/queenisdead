@@ -4,8 +4,10 @@
 ###########################
 
 class Deck
+    attr_reader :board
 
-    def initialize
+    def initialize(board)
+      @board = board
       @cards = []
     end
 
@@ -28,7 +30,8 @@ end
 ######################
 
 class BuildingsDeck < Deck
-  def initialize
+  def initialize(board)
+    super(board)
     add_cards(Apothecary, 2)
     add_cards(Bank, 1)
     add_cards(Barracks, 1)
@@ -52,7 +55,8 @@ end
 ######################
 
 class RetainersDeck < Deck
-  def initialize
+  def initialize(board)
+    super(board)
     add_cards(Barber, 2)
     add_cards(Bard, 2)
     add_cards(Barrister, 2)

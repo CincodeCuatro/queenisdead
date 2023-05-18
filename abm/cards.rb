@@ -9,31 +9,26 @@ end
 
 ### Building cards
 class Building < Card
-  attr_reader :cost, :workers, :worker_num, :office_unlock, :manager
+  attr_reader :cost, :workers, :worker_capacity, :office_unlock, :manager
   
   # Init
   def initialize(deck)
-    @deck = deck # The building-deck this card belongs to 
-    @cost = 0 # Cost of this building
-    @workers = [] # List of players that have workers on this building (players can appear multiple times)
-    @worker_num = 0 # Maximum number of workers
-    @office_unlock = nil # Which office (if any) this building unlocks
-    @manager = nil # The character that is managing this building (if any)
-  end
-
-  # Reset and reshuffle this card back into the deck
-  def reshuffle
-    @deck.tuck(self)
-    initialize(@deck)
+    super
+    @deck = deck # The building-deck this card belongs to
+    @workers = Box.new("#{self.class}_#{self.object_id}_workers", @worker_capacity, -> _x, _xs { raise "Cannot add any more workers here #{self}" }) # List of players that have workers on this building (players can appear multiple times)
+    @manager = Slot.new("#{self.class}_#{self.object_id}_manager")
   end
 
   # Apply building effects to relevant players
   def output
   end
 
-  ## TODO: Implement
   def build(pos)
-
+    bs = @deck.board.buildings
+    raise "Already a building in position #{pos}" if !bs.get(pos).nil?
+    @deck.board.buildingQueue.remove(self)
+    bs.set(self, pos)
+    set_location(bs.get_slot(pos))
   end
 
   # Called when this building is destroyed and put back into the deck
@@ -42,33 +37,11 @@ class Building < Card
   # The exception is if office_unlock is not nil, in this case the building is permanent
   def destroy
     if @office_unlock.nil?
-      @manager&.kill
-      @workers.each { |w| w.move(nil) }
-      reshuffle
+      @manager.contents&.kill
+      @workers.contents.map { |w| w.move(nil) }
+      @deck.tuck(self)
+      initialize(@deck)
     end
-  end
-
-  # Make the provided character this building's manager (if there isn't already a manager)
-  def place_character(character)
-    raise "Building already has a manager #{@manager}" if !@manager.nil?
-    @manager = character
-  end
-
-  # Remove the current manager
-  def remove_character(_character)
-    raise "Building has no manager" if @manager.nil?
-    @manager = nil
-  end
-
-  # Add the provided worker to this card's worker pool (if there's capacity for it)
-  def place_worker(worker)
-    raise "Building already at max worker capacity" if @workers.length >= @worker_num
-    @workers << worker
-  end
-
-  # Remove the provided worker from this card's worker pool
-  def remove_worker(worker)
-    raise "Worker not positioned here" if !@workers.delete(worker)
   end
 
 end
@@ -81,6 +54,7 @@ class Retainer < Card
 
   # Init
   def initialize(deck)
+    super
     @deck = deck # The retainer-deck this card belongs to 
     @master = nil # The character this retainer is attached to
     @bluff = nil # An instance of another retainer card that this one is bluffing (if any)
@@ -88,7 +62,6 @@ class Retainer < Card
   
   # Return this card to the retainer deck, remove it from its master, and reset it
   def reshuffle
-    @master&.remove_retainer
     @deck.tuck(self)
     initialize(@deck)
   end
@@ -108,10 +81,17 @@ class Retainer < Card
 
   # Attached this retainer to an in-play character
   # If bluff_as is supplied, play the card face down and bluff as that class
-  def play(character, bluff_as=nil)
+  def attach(character, bluff_as=nil)
     @master = character
-    master.retainer = self
+    set_location(@master.retainer)
+    @master.retainer.set(self)
     @bluff = bluff_as.new if !bluff_as.nil?
+  end
+
+  def detach
+    @master&.retainer.remove(self)
+    set_location(nil)
+    initialize(deck)
   end
 
   # An effect the player that owns this card may play on their turn
@@ -166,20 +146,20 @@ end
 
 #Visit the Apothecary before a Plague Crisis to save family characters in play
 class Apothecary < Building
-  def initialize
-    super
+  def initialize(deck)
     @cost = 6
-    @worker_num = 3
+    @worker_capacity = 3
+    super(deck)
   end
 end
 
 #Unlocks Lord Treasurer position when constructed, generates +2 gold when occupied
 class Bank < Building
-  def initialize
-    super
+  def initialize(deck)
     @cost = 8
-    @worker_num = 1
+    @worker_capacity = 1
     @office_unlock = :treasurer
+    super(deck)
   end
 
   def output
@@ -195,21 +175,21 @@ end
 
 #Unlocks Commander position when constructed. Special action: When Commander uses action to vacate a building, they may place workers currently in the Barracks in the new building
 class Barracks < Building
-  def initialize
-    super
+  def initialize(deck)
     @cost = 6 
-    @worker_num = 4
+    @worker_capacity = 4
     @office_unlock = :commander
+    super(deck)
   end
 end
 
 #Unlocks High Priest position when constructed. For every 2 workers owned by the same player generate +1 prestige
 class Church < Building
-  def initialize
-    super
+  def initialize(deck)
     @cost = 6
-    @worker_num = 4
+    @worker_capacity = 4
     @office_unlock = :priest
+    super(deck)
   end
 
   def output
@@ -226,10 +206,10 @@ end
 
 #Fallow during winter season. Summer Generates +1 food per occupied space and +3 if the same player owns both spaces. During Harvest season generates +2 food per space, and +6 if one player owns both spaces.
 class Farm < Building
-  def initialize
-    super
+  def initialize(deck)
     @cost = 4
-    @worker_num = 2
+    @worker_capacity = 2
+    super(deck)
   end
 
   def output
@@ -246,10 +226,10 @@ end
 
 #Generates +1 prestige for occupying player
 class GuildHall < Building
-  def initialize
-    super
+  def initialize(deck)
     @cost = 6
-    @worker_num = 1
+    @worker_capacity = 1
+    super(deck)
   end
 
   def output
@@ -266,10 +246,10 @@ end
 #Generates +1 gold for each worker, occupying players may exchange food at a base cost of 1 gold per 2 food, and vice versa. 
 #Special - if Lord Treasurer has a representative in the market, generate +1 gold for every transaction made by other players. 
 class Market < Building
-  def initialize
-    super
+  def initialize(deck)
     @cost = 6
-    @worker_num = 3
+    @worker_capacity = 3
+    super(deck)
   end
 
   def output
@@ -285,19 +265,19 @@ end
 
 #Occupying this building at the end of the year will allow the player to regain a previously used Bannermen card. 
 class MercenaryCamp < Building
-  def initialize
-    super
+  def initialize(deck)
     @cost = 6
-    @worker_num = 1
+    @worker_capacity = 1
+    super(deck)
   end
 end
 
 #Generates +1 gold per occupied space. If the same player occupies both generate +4 gold and +1 prestige
 class Mine < Building
-  def initialize
-    super
+  def initialize(deck)
     @cost = 10
-    @worker_num = 2
+    @worker_capacity = 2
+    super(deck)
   end
 
   def output
@@ -316,11 +296,11 @@ end
 #Visiting the tavern with a worker or family character allows purchase of retainer for 3 gold.
 #Special - Dice game, minimum 2 gold bet, roll a dice, 5 or higher to double the bet. May also challenge other players in tavern. 
 class Tavern < Building
-  def initialize
-    super
+  def initialize(deck)
     @cost = 4 
-    @worker_num = 3
+    @worker_capacity = 3
     @office_unlock = :spymaster
+    super(deck)
   end
 end
 
@@ -465,7 +445,7 @@ class Physician < Retainer
     if @master.player.gold >= cost
       @master.player.take({ gold: cost })
       unless target.retainer.is_a?(Cupbearer)
-        target.return_to_hand
+        target.move(nil)
         return_to_deck
       end
     else

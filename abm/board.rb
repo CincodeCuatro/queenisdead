@@ -24,53 +24,62 @@
 class Board
 
   attr_reader
-    :season, :crisisTracker, :sentencing, :year,
+    :season, :activeCrisis, :pastCrises, :sentencing, :year,
     :buildingsDeck, :retainersDeck, :lawsDeck, :crisesDeck,
     :buildings, :court, :campaign, :crypt, :dungeon,
     :crown, :priest, :commander, :spymaster, :treasurer, :heir,
-    :currentLaws, :treasury
+    :currentLaws, :treasury, :buildingQueue
 
   def initialize
     #Trackers
     @season = :summer
-    @crisisTracker = []
+    @activeCrisis = nil
+    @pastCrises = []
     @sentencing = :fine
     @year = 0
 
     # Decks
-    @buildingsDeck = BuildingsDeck.new
-    @retainersDeck = RetainersDeck.new
+    @buildingsDeck = BuildingsDeck.new(self)
+    @retainersDeck = RetainersDeck.new(self)
     # @lawsDeck = LawsDeck.new # TODO: 
     # @crisesDeck = CrisesDeck # TODO: 
 
     # Spaces
-    @buildings = Spaces.new(15)
-    @court = Spaces.new(13)
-    @campaign = []
-    @dungeon = []
-    @crypt = []
+    @buildings = Ring.new(:buildings, 15)
+    @court = Ring.new(:court, 15)
+    @campaign = Box.new(:campaign, 6, -> _x, _xs { raise "No space left in Campaign" })
+    @dungeon = Box.new(:dungeon, 3, -> x, xs { xs.shift&.kill; xs << x })
+    @crypt = Bag.new(:crypt)
 
     # Offices
-    @crown = nil
-    @priest = nil
-    @commander = nil
-    @spymaster = nil
-    @treasurer = nil
-    @heir = nil
+    @crown = Slot.new(:crown)
+    @priest = Slot.new(:priest)
+    @commander = Slot.new(:commander)
+    @spymaster = Slot.new(:spymaster)
+    @treasurer = Slot.new(:treasurer)
+    @heir = Slot.new(:heir)
 
     # Misc
     @currentLaws = []
     @treasury = Coffer.new
+    @buildingQueue = Box.new(:building_queue, 3, -> c, bq { @buildingsDeck.tuck(bq.shift); bq << c })
   end
 
   def next_season
-    @year += 1 if @season == :winter 
+    @dungeon.contents.shift&.move(nil)
+    if @season == :winter
+      @year += 1
+      if !@activeCrisis.nil?
+        @pastCrises << @activeCrisis
+        @activeCrisis = nil
+      end
+    end
     seasons = [:summer, :harvest, :winter]
-    seasons[(seasons.index(@season)+1) % seasons.length]    
+    seasons[(seasons.index(@season) + 1) % seasons.length]    
   end
 
-  def add_crisis(crisis)
-    @crisisTracker << crisis
+  def activate_crisis
+    @activeCrisis = @crisesDeck.draw
   end
 
   def realm_upkeep
@@ -95,137 +104,12 @@ class Board
     end
   end
 
-  def set_office(office_name, player)
-    raise "Office: #{office_name} not available!" if not office_available(office_name)
-    case office_name
-    when :crown; @crown = player
-    when :priest; @priest = player
-    when :commander; @commander = player
-    when :spymaster; @spymaster = player
-    when :treasurer; @treasurer = player
-    when :heir; @heir = player
-    else raise "Unknown office: #{office_name}"
-    end
+  def get_build_queue
+    @buildQueue.contents.zip(1..3)..map { |b, i| [b, b.cost + i] }
   end
 
-end
-
-
-
-
-
-# Interface for objects which can have things placed on them
-module BoardLocation
-  # Place item on this board location (with optional position)
-  def place(item, pos=nil) = raise "Not implemented"
-
-  # Remove item from this board position
-  def unplace()
-
-end
-
-
-
-# Container for board-items with not adjacency or capacity
-class Crypt
-
-  attr_reader :name
-
-  def initialize(name)
-    @name = name
-    @contents = []
-  end
-
-  def can_move_to?
-    true
-  end
-
-  def add(a)
-    raise "Wrong board item type" if !a.is_a?(Character)
-    @contents << a
-  end
-
-  def remove(a)
-    @contents.delete(a)
-  end
-
-  def has?(a)
-    @contents.include?(a)
-  end
-
-end
-
-
-class Campaign < Crypt
-
-  def initialize(name, capacity)
-    super(name)
-    @capacity = capacity
-  end
-
-  def can_move_to?
-    @contents.length < @capacity
-  end
-
-end
-
-
-class Dungeon < Crypt
-
-  def initialize(name, capacity)
-    super(name)
-    @capacity = capacity
-  end
-
-  def add(a)
-    @contents.shift.kill if @contents.length >= @capacity
-    super(a)
-  end
-
-end
-
-
-# Container for characters, with sub areas
-class Court
-
-  def initialize(name, @capacity)
-    super(name)
-    @capacity = capacity
-    @spaces = Array.new(@capacity, nil)
-  end
-
-  def at(pos)
-    @spaces[pos % @spaces.length]
-  end
-
-  def can_move_to?(pos)
-    at(pos).nil?
-  end
-
-  def pos_of(a)
-    @spaces.index(a)
-  end
-
-  def adjacent?(a, b)
-    positions = [pos_of(a), pos_of(b)].sort
-    return nil if positions.include?(nil)
-    return true if positions == [0, @size-1]
-    return (positions[1] - positions[0]) == 1
-  end
-
-  def has_a?(type)
-    @spaces.map { |space| space.is_a?(type) }.any?
-  end
-
-  def add(a, pos)
-    raise "Wrong board item type" if !a.is_a?(Character)
-    @spaces[pos] = a
-  end
-
-  def remove(a)
-    pos = pos_of(a)
-    raise "No item #{a} in Court" if pos.nil?
-    @spaces[pos] = nil
+  def advance_build_queue
+    @buildingQueue.add(@buildingsDeck.draw)
   end
 
 end
@@ -235,22 +119,3 @@ end
 
 
 
-
-
-class Coffer
-  def initialize(amounts={})
-    @gold = amounts[:gold] || 0
-    @food = amounts[:food] || 0
-    @prestige = amounts[:prestige] || 0
-  end
-
-  def give(amounts)
-    @gold += amounts[:gold] || 0
-    @food += amounts[:food] || 0
-    @prestige += amounts[:prestige] || 0
-  end
-
-  def take(amounts)
-    give(amounts.transform_values { |x| -1 * x })
-  end
-end
