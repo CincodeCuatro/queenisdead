@@ -28,6 +28,7 @@ class Character < Piece
     return self
   end
 
+  #handles movement for character around the board
   def move(location, pos=nil)
     @location&.remove(self)
     b = @player.game.board
@@ -35,8 +36,8 @@ class Character < Piece
       when :crypt; b.crypt.add(self); set_location(b.crypt)
       when :dungeon; b.dungeon.add(self); set_location(b.dungeon)
       when :campaign; b.campaign.add(self); set_location(b.campaign)
-      when :court; b.court.set(self, pos); set_location(b.court.get_slot(pos))
-      when :building; bld = b.buildings.get(pos); bld&.set_manager(self); set_location(bld&.manager) 
+      when :court; b.court.set(self, pos); set_location(b.court)
+      when :building; bld = b.buildings.get(pos); bld&.manager.set(self); set_location(bld) 
       when :crown; b.crown.set(self); set_location(b.crown)
       when :priest; b.priest.set(self); set_location(b.priest)
       when :commander; b.commander.set(self); set_location(b.commander)  
@@ -53,6 +54,7 @@ class Character < Piece
     move(:crypt)
   end
 
+  #Handles punishment for a character based on sentencing severity on the board
   def punish
     case @player.game.board.sentencing
       when :fine; @player.take({ gold: 10 }); @player.game.board.priest.contents&.give({ gold: 10 })

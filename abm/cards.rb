@@ -28,7 +28,7 @@ class Building < Card
     raise "Already a building in position #{pos}" if !bs.get(pos).nil?
     @deck.board.buildingQueue.remove(self)
     bs.set(self, pos)
-    set_location(bs.get_slot(pos))
+    set_location(bs)
   end
 
   # Called when this building is destroyed and put back into the deck
@@ -42,6 +42,12 @@ class Building < Card
       @deck.tuck(self)
       initialize(@deck)
     end
+  end
+
+  # Remove attached character or worker
+  def remove(x)
+    @manager.remove(x)
+    @workers.remove(x)
   end
 
 end
@@ -73,10 +79,19 @@ class Retainer < Card
     self.class
   end
 
+  # Returns whether this retainer is attached to a character adjacent to this target
+  def is_adjacent_to_character?(target)
+    b = @deck.board
+    ml, tl = @master.location, target.location
+    return b.court.adjacent?(@master, b.master) if ml == b.court && tl == b.court
+    b.buildings.adjacent?(ml, tl) if ml.is_a?(Building) && tl.is_a?(Building)
+    return false
+  end
+
   # Checks to make sure the target is an adjacent character
   # If not, raises and exception
   def assert_adjacent!(target)
-    raise "#{target} is not adjacent to: #{@master}" unless @master.adjacent_to?(target)
+    raise "#{target} is not adjacent to: #{@master}" unless is_adjacent_to_character(target)
   end
 
   # Attached this retainer to an in-play character
@@ -135,7 +150,11 @@ end
 ### Law cards
 # TODO: Implement
 class Law < Card
-
+=begin
+name: "Triple Taxation"
+description: "Lord Treasurer now collects +6 on inspections and +4 gold and +6 food from each player"
+effect: "Lord Treasurer collects +6 on inspection, and +4 gold and +6 food from each player as Tax"  
+=end
 end
 
 
@@ -163,12 +182,12 @@ class Bank < Building
   end
 
   def output
-    workers.each do |player|
+    workers.each do |w|
       bounty = { gold: 2 }
-      if !@manager.nil? && player == @manager.player
+      if w.player == @manager.contents&.player
         bounty.transform_values! { |v| v * 2 }
       end
-      player.give bounty
+      player.give(bounty)
     end
   end
 end
@@ -193,13 +212,13 @@ class Church < Building
   end
 
   def output
-    player_worker_counts = workers.group_by(&:itself).map { |k, v| [k, v.length] }.to_h 
+    player_worker_counts = workers.contents.map(&:player).group_by(&:itself).map { |k, v| [k, v.length] }.to_h 
     player_worder_counts.each do |player, count|
       bounty = { prestige: 1 }
-      if !@manager.nil? && player == @manager.player
+      if player == @manager.contents&.player
         bounty.transform_values! { |v| v * 2 }
       end
-      player.give bounty if count >= 2
+      player.give(bounty) if count >= 2
     end
   end
 end
@@ -213,13 +232,13 @@ class Farm < Building
   end
 
   def output
-    player_worker_counts = workers.group_by(&:itself).map { |k, v| [k, v.length] }.to_h 
+    player_worker_counts = workers.contents.map(&:player).group_by(&:itself).map { |k, v| [k, v.length] }.to_h 
     player_worder_counts.each do |player, count|
       bounty = { food: ((count < 2) ? 1 : 3) }
-      if !@manager.nil? && player == @manager.player
+      if player == @manager.contents&.player
         bounty.transform_values! { |v| v * 2 }
       end
-      player.give bounty
+      player.give(bounty)
     end
   end
 end
@@ -233,12 +252,12 @@ class GuildHall < Building
   end
 
   def output
-    workers.each do |player|
+    workers.each do |w|
       bounty = { prestige: 1 }
-      if !@manager.nil? && player == @manager.player
+      if w.player == @manager.contents&.player
         bounty.transform_values! { |v| v * 2 }
       end
-      player.give bounty
+      player.give(bounty)
     end
   end
 end
@@ -253,12 +272,12 @@ class Market < Building
   end
 
   def output
-    workers.each do |player|
+    workers.each do |w|
       bounty = { gold: 1 }
-      if !@manager.nil? && player == @manager.player
+      if w.player == @manager.contents&.player
         bounty.transform_values! { |v| v * 2 }
       end
-      player.give bounty
+      player.give(bounty)
     end
   end
 end
@@ -281,13 +300,13 @@ class Mine < Building
   end
 
   def output
-    player_worker_counts = workers.group_by(&:itself).map { |k, v| [k, v.length] }.to_h 
-    player_worder_counts.each do |player, count|
+    player_worker_counts = workers.contents.map(&:player).group_by(&:itself).map { |k, v| [k, v.length] }.to_h 
+    player_worker_counts.each do |player, count|
       bounty = { gold: ((count < 2) ? 1 : 4), prestige: ((count < 2) ? 0 : 1) }
-      if !@manager.nil? && player == @manager.player
+      if w.player == @manager.contents&.player
         bounty.transform_values! { |v| v * 2 }
       end
-      player.give bounty
+      player.give(bounty)
     end
   end
 end

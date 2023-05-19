@@ -96,12 +96,9 @@ class Ring
     end
   end
 
+  #gets contents of a slot at position n
   def get(n)
     @contents[n % @capacity].contents
-  end
-
-  def get_slot(n)
-    @contents[n % @capacity]
   end
 
   def index(piece)
@@ -113,6 +110,7 @@ class Ring
     @contents.map { |slot| slot.contents&.is_a?(type) }.any
   end
 
+  #Checks adjacency between two positions, mainly used by characters to use abilities of their Retainers
   def adjacent?(a, b)
     ai, bi = index(a), index(b)
     return !ai.nil? && !bi.nil? && (ai - bi).abs == 1
