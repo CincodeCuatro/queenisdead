@@ -1,4 +1,5 @@
 require_relative 'piece_containers'
+require_relative 'pieces'
 
 
 #############################
@@ -15,7 +16,7 @@ class Building < Card
   
   # Init
   def initialize(deck)
-    super
+    super()
     @deck = deck # The building-deck this card belongs to
     @workers = Box.new("#{self.class}_#{self.object_id}_workers", @worker_capacity, -> _x, _xs { raise "Cannot add any more workers here #{self}" }) # List of players that have workers on this building (players can appear multiple times)
     @manager = Slot.new("#{self.class}_#{self.object_id}_manager")
@@ -74,7 +75,7 @@ class Retainer < Card
 
   # Init
   def initialize(deck)
-    super
+    super()
     @deck = deck # The retainer-deck this card belongs to 
     @master = nil # The character this retainer is attached to
     @bluff = nil # An instance of another retainer card that this one is bluffing (if any)
@@ -350,7 +351,7 @@ class Barber < Retainer
   end
 
   def bluff_fail
-    super
+    super()
     @master.kill
     return_to_deck
   end
@@ -368,7 +369,7 @@ class Bard < Retainer
   end
 
   def bluff_fail
-    super
+    super()
     @master.punish
     return_to_deck
   end
@@ -378,7 +379,7 @@ end
 #The Barrister negates upkeep cost for a character on Campaign or imprisoned. If caught in a lie he will be punished accordingly. 
 class Barrister < Retainer
   def bluff_fail
-    super
+    super()
     if @master.imprisoned?
       @master.kill
     elsif @master.campaigning?
@@ -400,7 +401,7 @@ class Courtesan < Retainer
   end
 
   def bluff_fail
-    super
+    super()
     @master.take({ prestige: 2 })
   end
 end
@@ -412,7 +413,7 @@ class Cupbearer < Retainer
   end
 
   def bluff_fail
-    super
+    super()
     @master.take({ food: 5 })
   end
 end
@@ -431,7 +432,7 @@ class Huntmaster < Retainer
   end
 
   def bluff_fail
-    super
+    super()
     @master.kill
     return_to_deck
   end
@@ -458,7 +459,7 @@ class Monk < Retainer
   end
 
   def bluff_fail
-    super
+    super()
     @master.punish
     return_to_deck
   end

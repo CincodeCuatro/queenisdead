@@ -5,12 +5,13 @@ require_relative 'coffer'
 
 class Board
 
-  attr_reader
+  attr_reader(*[
     :season, :activeCrisis, :pastCrises, :sentencing, :year,
     :buildingsDeck, :retainersDeck, :lawsDeck, :crisesDeck,
     :buildings, :court, :campaign, :crypt, :dungeon,
     :crown, :priest, :commander, :spymaster, :treasurer, :heir,
     :currentLaws, :treasury, :buildingQueue
+  ])
 
   def initialize
     #Trackers
@@ -68,8 +69,8 @@ class Board
   
   # Realm upkeep increases with each building constructed, must be paid in full to avert crisis at the end of a year (3rd season)
   def realm_upkeep
-    UPKEEP_MULTIPLIER = { gold: 2, food: 2 }
-    UPKEEP_MULTIPLIER.transform_values { |v| v * @buildings.length } 
+    upkeep_base = { gold: 2, food: 2 }
+    upkeep_base.transform_values { |v| v * @buildings.length } 
   end
 
   # Priest position may set sentencing as an action. Fine is 10 gold paid to priest, prison sends character to dungeon, and death kills character. Dungeon overflow also results in death

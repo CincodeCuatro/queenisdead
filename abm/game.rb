@@ -83,7 +83,7 @@ class Game
     @crownWinThreshold = 9
     @firstCrown = true
     @moveLog = []
-    @players.sample.characters.contents.first.move(:crown)
+    @players.sample.characters.first.move(:crown)
   end
 
   def play_round

@@ -23,7 +23,7 @@ class Character < Piece
 
   # Init
   def initialize(player, gender=nil)
-    super
+    super()
     @player = player
     @gender = gender || [:male, :female].sample
     @retainer = Slot.new("Character_#{object_id}_retainer")
@@ -97,7 +97,7 @@ class Worker < Piece
 
   # Init
   def initialize(player)
-    super
+    super()
     @player = player
   end
 

@@ -4,6 +4,8 @@ require_relative 'coffer'
 
 class Player
     
+  attr_reader :game, :workers, :characters, :retainers, :coffer
+
   def initialize(game)
     @game = game
     @workers = Array.new(4) { Worker.new(self) }
@@ -83,7 +85,7 @@ class Player
   def place_worker_actions
     return [] if free_workers.empty?
     bs = @game.board.constructed_buildings.filter { |b| !b.workers.full? }
-    bs.map { |b| TurnAction.new("Moved worker to #{b.name}"), ->{ place_worker(b) } }
+    bs.map { |b| TurnAction.new("Moved worker to #{b.name}", ->{ place_worker(b) }) }
   end
 
   # Move a worker from its current building to another one with capacity
@@ -101,7 +103,7 @@ class Player
   def place_manager_actions
     return [] if free_characters.empty?
     bs = @game.board.constructed_buildings.filter { |b| b.manager.empty? }
-    bs.map { |b| TurnAction.new("Moved character to #{b.name}"), ->{ place_manager(b) } }
+    bs.map { |b| TurnAction.new("Moved character to #{b.name}", ->{ place_manager(b) }) }
   end
 
   # Move a character from a building to another manager-less building

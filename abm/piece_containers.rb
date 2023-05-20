@@ -64,9 +64,7 @@ class Box
   end
 
   def add(piece)
-    full?
-      ? @on_overflow.call(piece, @contents)
-      : @contents << piece
+    full? ? @on_overflow.call(piece, @contents) : @contents << piece
   end
 
   def get(n)
