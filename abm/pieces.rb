@@ -1,3 +1,5 @@
+require_relative 'piece_containers'
+
 
 # An item on the board (a building card, a character, a worker, or a retainer card) that has a location and can be moved
 class Piece
@@ -38,7 +40,7 @@ class Character < Piece
       when :campaign; b.campaign.add(self); set_location(b.campaign)
       when :court; b.court.set(self, pos); set_location(b.court)
       when :building; bld = b.buildings.get(pos); bld&.manager.set(self); set_location(bld) 
-      when :crown; b.crown.set(self); set_location(b.crown)
+      when :crown; b.crown.set(self); set_location(b.crown); @player.game.new_crown
       when :priest; b.priest.set(self); set_location(b.priest)
       when :commander; b.commander.set(self); set_location(b.commander)  
       when :spymaster; b.spymaster.set(self); set_location(b.spymaster)
@@ -47,6 +49,24 @@ class Character < Piece
       when nil; set_location(nil)
       else raise "Unknown location: #{location}"
     end
+  end
+
+  def where_am_i?
+    return :hand if @location.nil?
+    return :building if @location.is_a?(Building)
+    b = @player.game.board
+    return {
+      b.crypt => :crypt,
+      b.dungeon => :dungeon,
+      b.campaign => :campaign,
+      b.court => :court,
+      b.crown => :crown,
+      b.priest => :priest,
+      b.commander => :commander,
+      b.spymaster => :spymaster,
+      b.treasurer => :treasurer,
+      b.heir => :heir
+    }[@location]
   end
 
   def kill

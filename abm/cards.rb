@@ -1,3 +1,5 @@
+require_relative 'piece_containers'
+
 
 #############################
 ### Abstract Card Classes ###
@@ -17,6 +19,10 @@ class Building < Card
     @deck = deck # The building-deck this card belongs to
     @workers = Box.new("#{self.class}_#{self.object_id}_workers", @worker_capacity, -> _x, _xs { raise "Cannot add any more workers here #{self}" }) # List of players that have workers on this building (players can appear multiple times)
     @manager = Slot.new("#{self.class}_#{self.object_id}_manager")
+  end
+
+  def name
+    self.class.to_s.downcase
   end
 
   # Apply building effects to relevant players
@@ -44,11 +50,19 @@ class Building < Card
     end
   end
 
+  # Forces manager and workers off this building (and back to their owner's hand)
+  def vacate
+    @manager.contents&.move(nil)
+    @workers.contents.map { |w| w.move(nil) }
+  end
+
   # Remove attached character or worker
   def remove(x)
     @manager.remove(x)
     @workers.remove(x)
   end
+
+  ## TODO: Add player-boon method
 
 end
 
@@ -75,7 +89,7 @@ class Retainer < Card
   # The class of this retainer card (if face up)
   # or the class of the card it is bluffing as (if bluffing)
   def appears_as
-    @bluff.class if !@bluff.nil?
+    return @bluff.class if !@bluff.nil?
     self.class
   end
 
@@ -487,5 +501,5 @@ class Rogue < Retainer
     else
       raise "Player doesn't have enough gold for this action"
     end
-  end
+  end 
 end

@@ -25,6 +25,10 @@ class Slot
   def clear
     @contents = nil
   end
+
+  def empty?
+    @contents.nil?
+  end
 end
 
 # A container for any number of pieces which are never retrieved
@@ -55,8 +59,12 @@ class Box
     @contents = []
   end
 
-  def add(piece)
+  def full?
     @contents.length >= @capacity
+  end
+
+  def add(piece)
+    full?
       ? @on_overflow.call(piece, @contents)
       : @contents << piece
   end
@@ -69,6 +77,7 @@ class Box
     piece.clear_location
     @contents.delete(piece)
   end
+
 end
 
 # A container which contains a fixed number of slots
@@ -114,5 +123,10 @@ class Ring
   def adjacent?(a, b)
     ai, bi = index(a), index(b)
     return !ai.nil? && !bi.nil? && (ai - bi).abs == 1
+  end
+
+  def first_free_pos
+    @contents.each_with_index { |s, i| return i if s.empty? }
+    return nil
   end
 end

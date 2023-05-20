@@ -1,3 +1,5 @@
+require_relative 'cards'
+
 
 ###########################
 ### Abstract Deck Class ###

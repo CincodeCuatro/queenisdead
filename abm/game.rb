@@ -1,3 +1,7 @@
+require_relative 'board'
+require_relative 'player'
+
+
 #####################
 ### Win Coditions ###
 #####################
@@ -67,3 +71,50 @@ BUILDING_PLOTS:
 
 
 =end
+
+class Game
+
+  attr_reader :board, :players
+
+  def initialize(player_num=4)
+    @board = Board.new
+    @players = Array.new(player_num) { Player.new(self) }
+    @crownTicker = 0
+    @crownWinThreshold = 9
+    @firstCrown = true
+    @moveLog = []
+    @players.sample.characters.contents.first.move(:crown)
+  end
+
+  def play_round
+    @board.buildings.map { |slot| slot.contents&.output }
+    @board.crown.contents.play_turn
+    @players.each { |player| player.play_turn if player != @board.crown.contents }
+    # TODO: collect upkeep if season is winter
+    @board.next_season
+    @crownTicker += 1
+  end
+
+  def game_end?
+    return :fiveYears if @board.year >= 5
+    return :crownWin if @crownTicker >= @crownWinThreshold
+    return :crisisEnd if !@board.activeCrisis.nil? && @board.pastCrises.length >= 2
+    return :familyExtinguished if !@players.map(&:has_free_character?).all?
+    return false
+  end
+
+  def new_crown
+    @crownTicker = 0
+    @crownWinThreshold = @firstCrown ? 9 : 6
+    @firstCrown = false
+  end
+
+  def add_to_log(move_desc)
+    @moveLog << move_desc
+  end
+
+  def challenge
+    [true, false].sample
+  end
+
+end
