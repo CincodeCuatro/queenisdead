@@ -16,6 +16,9 @@ class Coffer
 
   def take(amounts)
     give(amounts.transform_values { |x| -1 * x })
+    @gold = [@gold, 0].max
+    @food = [@food, 0].max
+    @prestige = [@prestige, 0].max
   end
 
   def show

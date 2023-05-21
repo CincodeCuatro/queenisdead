@@ -86,6 +86,7 @@ class Character < Piece
   #Handles punishment for a character based on sentencing severity on the board
   def punish
     case @player.game.board.sentencing
+      # TODO: in case of fine sentencing should gold go to the priest?
       when :fine; @player.take({ gold: 10 }); @player.game.board.priest.contents&.give({ gold: 10 })
       when :prison;
         d = @player.game.board.dungeon.contents

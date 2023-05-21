@@ -90,7 +90,7 @@ class Game
   # Checks if the game is over, if so returns the reason
   def game_end?
     return :fiveYears if @board.year >= 5
-    return :crownWin if (@board.firstCrown && @board.crownTicker >= 9) || @board.crownTicker >= 6
+    return :crownWin if (@board.firstCrown && (@board.crownTicker >= 9)) || @board.crownTicker >= 6 # TODO: Something fucky here
     return :crisisEnd if !@board.activeCrisis.nil? && @board.pastCrises.length >= 2
     return :familyExtinguished if @players.map(&:no_usable_characters?).any?
     return false
@@ -121,11 +121,14 @@ class Game
 
   # Simulate a full game
   def play!
+    rounds = 0
     game_end_reason = nil
     loop do
+      raise "Reached max rounds limit" if rounds > 100
       game_end_reason = game_end?
       break if game_end_reason
       play_round!
+      rounds += 1
     end
 
     case game_end_reason

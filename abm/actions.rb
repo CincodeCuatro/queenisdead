@@ -20,6 +20,7 @@ class Action
 end
 
 
+# TODO: This class is redundant (check treasurer audit action; pre determined outcomes)
 
 class ChallengeAction
 

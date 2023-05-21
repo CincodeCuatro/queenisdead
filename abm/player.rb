@@ -89,6 +89,8 @@ class Player
 
   ### Actions ###
 
+  # TODO: Break-up other office abilities (like commander)
+
   # All possible actions
   def actions
     [
@@ -103,7 +105,8 @@ class Player
       recall_character_actions,
       move_to_office_actions,
       priest_actions,
-      treasurer_actions
+      treasurer_actions,
+      commander_actions
     ].flatten
   end
 
@@ -214,6 +217,7 @@ class Player
     )]
   end
 
+  # Treasurer abilities. Tax all players & audit specific player
   def treasurer_actions
     return [] if !has_office?(:treasurer)
     other_players.map { |player|
@@ -239,6 +243,43 @@ class Player
     ]
   end
 
+  # Commander abilities (punish & vacate)
+  def commander_actions
+    return [] if !has_office?(:commander)
+    commander_punish_actions + commander_vacate_actions
+  end
+
+  # Punish a character with equal or less prestige (if challenge successful)
+  # TODO: King can punish without challenge
+  def commander_punish_actions
+    other_players
+    .filter { |player| player.coffer.prestige <= @coffer.prestige }
+    .map(&:characters)
+    .flatten
+    .filter { |c| ![:hand, :crown, :dungeon, :crypt].include?(c.where_am_i?)  }
+    .map { |c|
+      ChallengeAction.new(self,
+        "The Commander has punished Player #{c.player.id}",
+        ->{ c.punish },
+        "Player #{c.player.id} managed to escape the long arm of the law",
+        ->{}
+      )
+    }
+  end
+
+  # Vacate a building and move all the commander's workers in the barracks there
+  def commander_vacate_actions
+    @board.constructed_buildings
+      .filter { |b| !b.is_a?(Barracks) && !b.workers.contents.any? { |w| w.player == self } }
+      .map { |b|
+        Action.new(self,
+          "The Commander has seized a #{b.name} and moved any of his workers in the barracks there",
+          -> { b.vacate;  @workers.filter { |w| w.location.is_a?(Barracks) }.each { |w| w.move(b) } }
+        )
+      }
+  end
+
+
 end
 
 
@@ -263,26 +304,21 @@ x Place character on campaign
 x Place character in office
 x Recall character
 
-# Retainers
-- Purchase retainer (if worker/manager in Tavern)
-- Place a retainer on a character
-- Use retainer action
-
 # Priest
-- Tithe (collect money from all players that don't have a worker in the church)
-- Set sentencing
+x Tithe (collect money from all players that don't have a worker in the church)
+x Set sentencing
     
 # Treasurer
-- Collect base tax (constant amount) from all players. If a player can't pay they get punished (or lose prestige?)
-- Collect random (1, 6) amount from a specific player
+x Collect base tax (constant amount) from all players. If a player can't pay they get punished (or lose prestige?)
+x Collect random (1, 6) amount from a specific player
 
 # Commander
-- Target character for arreest (challenge if not ordered by King)
-- Vacate target building, sends all workers back to respective player hand. Moves workers from barracks into target buildng
+x Target character for arreest (challenge if not ordered by King)
+x Vacate target building, sends all workers back to respective player hand. Moves workers from barracks into target buildng
 
 # Spymaster
--peek at any deck (Crisis, law, retainer)
--peak at retainer in play/on board(reveal)
+- peek at any deck (Crisis, law, retainer)
+- peak at retainer in play/on board(reveal)
 
 # Crown
 x build at half cost (passive)
@@ -290,8 +326,13 @@ x build at half cost (passive)
 - use any ability of subordinate (can refuse sacrificing oath card/prestige)
 - pardon prisoner (target)
 
+# Retainers
+- Purchase retainer (if worker/manager in Tavern)
+- Place a retainer on a character
+- Use retainer action
 
-
+# Heir?
+???
 
 
 ### GOALS ###
