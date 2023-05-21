@@ -4,20 +4,23 @@ require_relative 'coffer'
 
 class Player
     
-  attr_reader :game, :workers, :characters, :retainers, :coffer
+  attr_reader :game, :playerID, :workers, :characters, :retainers, :coffer
 
-  def initialize(game)
+  def initialize(game, playerID)
     @game = game
+    @playerID = playerID
     @workers = Array.new(4) { Worker.new(self) }
     @characters = Array.new(6) { Character.new(self) }
     @retainers = []
-    @coffer = Coffer.new({ gold: 6, food: 6, prestige: 6 })
+    @coffer = Coffer.new({ gold: 20, food: 6, prestige: 6 })
     # @bannermenDeck = (1..13).to_a
   end
 
 
   def play_turn
-
+    pa = possible_actions
+    # puts "POSSIBLE ACTIONS FOR PLAYER #{@playerID}: " + pa.to_s
+    pa.sample&.run(@game)
   end
 
   # Check if this player has a character in the provided office
@@ -49,6 +52,10 @@ class Player
     @characters.filter { |c| c.location.nil? }
   end
 
+  def no_usable_characters?
+    @characters.map { |c| [:dungeon, :crypt].include?(c.where_am_i?) }.all?
+  end
+
   # Assign a free character as manager of the provided building
   def place_manager(building)
     raise "No free characters" if free_characters.empty?
@@ -63,38 +70,59 @@ class Player
     b1.manager.contents.move(b2)
   end
 
+  # Give resources to player
+  def give(resources)
+    @coffer.give(resources)
+  end
+
+  # Take resources from player
+  def take(resources)
+    @coffer.take(resources)
+  end
+
   
 
   ## Actions
 
   # All possible actions
   def possible_actions
+    [
+      build_actions,
+      place_worker_actions,
+      reallocate_worker_actions,
+      place_manager_actions,
+      reallocate_manager_actions,
+      takeover_actions,
+      court_actions,
+      campaign_actions,
+      recall_character_actions
+    ].flatten
   end
 
   # Build a building from the build queue
   def build_actions
-    pos = @game.buildings.first_free_pos
+    pos = @game.board.buildings.first_free_pos
     return [] if pos.nil?
     bs = @game.board.get_build_queue
     bs.map! { |b, c| [b, c/2] } if has_office?(:crown)
     bs.filter! { |b, c| c <= @coffer.gold }
-    bs.map { |b, _| TurnAction.new("Built #{b.name}", ->{ b.build(pos) }) }
+    bs.map { |b, _| TurnAction.new(self, "Built #{b.name}", ->{ b.build(pos) }) }
   end
 
   # Assign a free worker to a building with capacity for it
   def place_worker_actions
     return [] if free_workers.empty?
     bs = @game.board.constructed_buildings.filter { |b| !b.workers.full? }
-    bs.map { |b| TurnAction.new("Moved worker to #{b.name}", ->{ place_worker(b) }) }
+    bs.map { |b| TurnAction.new(self, "Moved worker to #{b.name}", ->{ place_worker(b) }) }
   end
 
   # Move a worker from its current building to another one with capacity
   def reallocate_worker_actions
     return [] if free_workers.length < @workers.length
     bs = @game.board.constructed_buildings.filter { |b| !b.workers.full? }
-    @board.worked_buildings(self).map { |b|
+    @game.board.worked_buildings(self).map { |b|
       bs.filter { |b2| b != b2 }.map { |b2|
-        TurnAction.new("Moved worker from #{b.name} to #{b2.name}", ->{ reallocate_worker(b, b2) })
+        TurnAction.new(self, "Moved worker from #{b.name} to #{b2.name}", ->{ reallocate_worker(b, b2) })
       }
     }.flatten
   end
@@ -103,14 +131,14 @@ class Player
   def place_manager_actions
     return [] if free_characters.empty?
     bs = @game.board.constructed_buildings.filter { |b| b.manager.empty? }
-    bs.map { |b| TurnAction.new("Moved character to #{b.name}", ->{ place_manager(b) }) }
+    bs.map { |b| TurnAction.new(self, "Moved character to #{b.name}", ->{ place_manager(b) }) }
   end
 
   # Move a character from a building to another manager-less building
   def reallocate_manager_actions
-    @game.board.contructed_buildings.filter { |b| b.manager.contents == self}.map { |b|
+    @game.board.constructed_buildings.filter { |b| b.manager.contents == self}.map { |b|
       @game.board.constructed_buildings.map { |b2| b.manager.empty? }.map { |b2|
-        TurnAction.new("Moved manager from #{b} to #{b2}", ->{ reallocate_manager(b, b2) })
+        TurnAction.new(self, "Moved manager from #{b} to #{b2}", ->{ reallocate_manager(b, b2) })
       }
     }.flatten
   end
@@ -118,8 +146,8 @@ class Player
   # Attempt to vacate a building and install a free character there
   def takeover_actions
     return [] if free_characters.empty?
-    @game.board.constructed_buildings.map { |b|
-      ChallengeAction.new(
+    @game.board.constructed_buildings.filter { |b| !b.manager.empty? && b.manager.contents != self }.map { |b|
+      ChallengeAction.new(self,
         "Took over #{b.name} and expelled all workers", ->{ b.vacate; free_characters.first.move(b) },
         "Died trying to take over #{b.name}", ->{ free_characters.first.kill }
       )
@@ -130,53 +158,64 @@ class Player
   def court_actions
     return [] if free_characters.empty?
     return [] if @coffer.prestige >= 2
-    [TurnAction.new("Moved character into court", ->{ free_characters.first.move(:court); @coffer.take({prestige: 2}) })]
+    return [] if @board.court.full?
+    [TurnAction.new(self, "Moved character into court", ->{ free_characters.first.move(:court); @coffer.take({prestige: 2}) })]
   end
 
   # Send a free character on campaign
   def campaign_actions
     return [] if free_characters.empty?
-    [TurnAction.new("Sent character on campaign", ->{ free_characters.first.move(:campaign) })]
+    return [] if @game.board.campaign.full?
+    [TurnAction.new(self, "Sent character on campaign", ->{ free_characters.first.move(:campaign) })]
   end
 
   # Recall an assigned character back to the player's hand
   def recall_character_actions
     @characters.filter { |c| ![:hand, :crypt, :dungeon].include?(c.where_am_i?) }.map { |c|
-      TurnAction("Recalled character from #{c.where_am_i?.to_s}", ->{ c.move(nil)  })
+      TurnAction.new(self, "Recalled character from #{c.where_am_i?.to_s}", ->{ c.move(nil) })
     }
   end
 
 end
 
+
+
 class TurnAction
-  def initialize(desc, action)
+
+  def initialize(player, desc, action)
+    @player = player
     @description = desc
     @action = action
   end
 
-  def run(player, game)
-    game.add_to_log([player, @description])
-    action.call
+  def run(game)
+    @action.call
+    game.add_to_log(self)
   end
+
+  def desc
+    "Player #{@player.playerID}: #{@description}"
+  end
+
 end
 
+
+
 class ChallengeAction
-  def initialize(succ_desc, succ_action, fail_desc, fail_action)
-    @success_description = succ_desc
-    @success_action = succ_action
-    @failure_description = fail_desc
-    @failure_action = fail_action
+
+  def initialize(player, succ_desc, succ_action, fail_desc, fail_action)
+    @success = TurnAction.new(player, succ_desc, succ_action)
+    @failure = TurnAction.new(player, fail_desc, fail_action)
   end
 
-  def run(player, game)
+  def run(game)
     if game.challenge
-      game.add_to_log([player, @success_description])
-      success_action.call
+      @success.run(game)
     else
-      game.add_to_log([player, @failure_description])
-      failure_action.call
+      @failure.run(game)
     end
   end
+
 end
 
 =begin

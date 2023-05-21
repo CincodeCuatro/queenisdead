@@ -14,6 +14,10 @@ class Piece
     @location = location
   end
 
+  def clear_location
+    @location = nil
+  end
+
 end
 
 # A Character card
@@ -34,12 +38,17 @@ class Character < Piece
   def move(location, pos=nil)
     @location&.remove(self)
     b = @player.game.board
+    if location.is_a?(Building)
+      location.manager.set(self)
+      set_location(location)
+      return
+    end
     case location
       when :crypt; b.crypt.add(self); set_location(b.crypt)
       when :dungeon; b.dungeon.add(self); set_location(b.dungeon)
       when :campaign; b.campaign.add(self); set_location(b.campaign)
       when :court; b.court.set(self, pos); set_location(b.court)
-      when :building; bld = b.buildings.get(pos); bld&.manager.set(self); set_location(bld) 
+      #when :building; bld = b.buildings.get(pos); bld&.manager.set(self); set_location(bld) 
       when :crown; b.crown.set(self); set_location(b.crown); @player.game.new_crown
       when :priest; b.priest.set(self); set_location(b.priest)
       when :commander; b.commander.set(self); set_location(b.commander)  
@@ -104,12 +113,12 @@ class Worker < Piece
   # Places this worker on the specified building
   # If target is nil, returns this worker to the player's hand
   def move(building)
-    @location&.workers.remove(self)
+    @location&.workers&.remove(self)
     if building.nil?
       set_location(nil)
     else
       building.workers.add(self)
-      set_location(building.workers)
+      set_location(building)
     end
   end
 end

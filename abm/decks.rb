@@ -17,7 +17,7 @@ class Deck
     def add_cards(card, n) = @cards.concat(Array.new(n) { card.new(self) })
 
     # Take N cards off the top of the deck
-    def draw(n=1) = @cards.pop(n)
+    def draw(n=1) = n==1 ? @cards.pop : @cards.pop(n)
     
     # Look at the top N cards
     def peek(n=1) = @cards.last(n)

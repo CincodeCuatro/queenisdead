@@ -33,7 +33,7 @@ class Building < Card
   def build(pos)
     bs = @deck.board.buildings
     raise "Already a building in position #{pos}" if !bs.get(pos).nil?
-    @deck.board.buildingQueue.remove(self)
+    @deck.board.buildQueue.remove(self)
     bs.set(self, pos)
     set_location(bs)
   end
@@ -197,12 +197,12 @@ class Bank < Building
   end
 
   def output
-    workers.each do |w|
+    @workers.contents.each do |w|
       bounty = { gold: 2 }
       if w.player == @manager.contents&.player
         bounty.transform_values! { |v| v * 2 }
       end
-      player.give(bounty)
+      w.player.give(bounty)
     end
   end
 end
@@ -227,8 +227,8 @@ class Church < Building
   end
 
   def output
-    player_worker_counts = workers.contents.map(&:player).group_by(&:itself).map { |k, v| [k, v.length] }.to_h 
-    player_worder_counts.each do |player, count|
+    player_worker_counts = @workers.contents.map(&:player).group_by(&:itself).map { |k, v| [k, v.length] }.to_h 
+    player_worker_counts.each do |player, count|
       bounty = { prestige: 1 }
       if player == @manager.contents&.player
         bounty.transform_values! { |v| v * 2 }
@@ -247,8 +247,8 @@ class Farm < Building
   end
 
   def output
-    player_worker_counts = workers.contents.map(&:player).group_by(&:itself).map { |k, v| [k, v.length] }.to_h 
-    player_worder_counts.each do |player, count|
+    player_worker_counts = @workers.contents.map(&:player).group_by(&:itself).map { |k, v| [k, v.length] }.to_h 
+    player_worker_counts.each do |player, count|
       bounty = { food: ((count < 2) ? 1 : 3) }
       if player == @manager.contents&.player
         bounty.transform_values! { |v| v * 2 }
@@ -267,12 +267,12 @@ class GuildHall < Building
   end
 
   def output
-    workers.each do |w|
+    @workers.contents.each do |w|
       bounty = { prestige: 1 }
       if w.player == @manager.contents&.player
         bounty.transform_values! { |v| v * 2 }
       end
-      player.give(bounty)
+      w.player.give(bounty)
     end
   end
 end
@@ -287,12 +287,12 @@ class Market < Building
   end
 
   def output
-    workers.each do |w|
+    @workers.contents.each do |w|
       bounty = { gold: 1 }
       if w.player == @manager.contents&.player
         bounty.transform_values! { |v| v * 2 }
       end
-      player.give(bounty)
+      w.player.give(bounty)
     end
   end
 end
@@ -315,10 +315,10 @@ class Mine < Building
   end
 
   def output
-    player_worker_counts = workers.contents.map(&:player).group_by(&:itself).map { |k, v| [k, v.length] }.to_h 
+    player_worker_counts = @workers.contents.map(&:player).group_by(&:itself).map { |k, v| [k, v.length] }.to_h 
     player_worker_counts.each do |player, count|
       bounty = { gold: ((count < 2) ? 1 : 4), prestige: ((count < 2) ? 0 : 1) }
-      if w.player == @manager.contents&.player
+      if player == @manager.contents&.player
         bounty.transform_values! { |v| v * 2 }
       end
       player.give(bounty)

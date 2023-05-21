@@ -10,7 +10,7 @@ class Board
     :buildingsDeck, :retainersDeck, :lawsDeck, :crisesDeck,
     :buildings, :court, :campaign, :crypt, :dungeon,
     :crown, :priest, :commander, :spymaster, :treasurer, :heir,
-    :currentLaws, :treasury, :buildingQueue
+    :currentLaws, :treasury, :buildQueue
   ])
 
   def initialize
@@ -45,7 +45,8 @@ class Board
     # Misc
     @currentLaws = []
     @treasury = Coffer.new
-    @buildingQueue = Box.new(:building_queue, 3, -> c, bq { @buildingsDeck.tuck(bq.shift); bq << c })
+    @buildQueue = Box.new(:building_queue, 3, -> c, bq { @buildingsDeck.tuck(bq.shift); bq << c })
+    3.times { advance_build_queue }
   end
 
   # Seasons advance after every player has taken their turn, after three seasons a year has passed. 
@@ -59,7 +60,7 @@ class Board
       end
     end
     seasons = [:summer, :harvest, :winter]
-    seasons[(seasons.index(@season) + 1) % seasons.length]    
+    @season = seasons[(seasons.index(@season) + 1) % seasons.length]    
   end
 
   # Draws crisis card and sets to active
@@ -94,15 +95,15 @@ class Board
 
   # Build queue on the board draws three cards, adds additional cost to each position, cards at the end is reshuffled into the deck
   def get_build_queue
-    @buildQueue.contents.zip(1..3)..map { |b, i| [b, b.cost + i] }
+    @buildQueue.contents.zip(1..3).map { |b, i| [b, b.cost + i] }
   end
 
   def advance_build_queue
-    @buildingQueue.add(@buildingsDeck.draw)
+    @buildQueue.add(@buildingsDeck.draw)
   end
 
   def constructed_buildings
-    @buildings.map { |b| b.contents }.compact
+    @buildings.contents.map(&:contents).compact
   end
 
   def worked_buildings(player)
