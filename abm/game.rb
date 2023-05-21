@@ -79,29 +79,61 @@ class Game
   def initialize(player_num=4)
     @board = Board.new
     @players = Array.new(player_num) { |i| Player.new(self, i) }
-    @crownTicker = 0
-    @crownWinThreshold = 9
-    @firstCrown = nil 
     @log = []
     @players.sample.characters.first.move(:crown)
-    add_to_log("Player #{@board.crown.contents.player.playerID} is king")
+    add_to_log("Player #{@board.crown.contents.player.id} is king")
   end
 
-  def inspect = "GAME"
 
+  ### Info Methods & Calculated Properties ###
+
+  # Checks if the game is over, if so returns the reason
+  def game_end?
+    return :fiveYears if @board.year >= 5
+    return :crownWin if (@board.firstCrown && @board.crownTicker >= 9) || @board.crownTicker >= 6
+    return :crisisEnd if !@board.activeCrisis.nil? && @board.pastCrises.length >= 2
+    return :familyExtinguished if @players.map(&:no_usable_characters?).any?
+    return false
+  end
+
+
+  ### Game Helper Methods ###
+
+  # Add a game event to the log
+  def add_to_log(item) = @log << item
+
+  # Print out the log of all the events that happened this game
+  def print_log = @log.each { |e| puts(e.is_a?(Action) ? e.desc : e) }
+
+  # Add some info to the log at the start of every year
+  def log_new_year
+    add_to_log("Start of year #{@board.year}")
+    add_to_log(@players.map(&:show).join("\t"))
+  end
+
+  # Used as coin flip for failable actions
+  # TODO: Implement actual challenges with banner-men
+  def challenge = [true, false].sample
+
+
+
+  ### Game Logic ###
+
+  # Simulate a full game
   def play!
     game_end_reason = nil
     loop do
       game_end_reason = game_end?
       break if game_end_reason
-      play_round
+      play_round!
     end
+
     case game_end_reason
     when :fiveYears
       add_to_log("Game ended: 5 years have passed") # TODO: Last crown should win
     when :crownWin
-      winner = @board.crown.contents.player.playerID
-      add_to_log("Game ended: Player #{winner} successfully held the throne for #{@firstCrown ? 3 : 2} years")
+      winner = @board.crown.contents.player.id
+      add_to_log("Game ended: Player #{winner} successfully held the throne for #{@board.firstCrown ? 3 : 2} years")
     when :crisisEnd
       add_to_log("Game ended: realm in crisis")
     when :familyExtinguished
@@ -110,49 +142,18 @@ class Game
     end
   end
 
-  def play_round
-    if @board.season == :summer
-      add_to_log("Start of year #{@board.year}")
-      add_to_log(@players.map(&:show).join("\t"))
-    end
-    @board.constructed_buildings.map(&:output)
+  # Play a single round
+  def play_round!
+    log_new_year if @board.beginning_of_year?
+
     if !@board.crown.empty?
-      @board.crown.contents.player.play_turn
-      @players.each { |player| player.play_turn if player != @board.crown.contents }
+      @board.crown.contents.player.take_turn!
+      @players.each { |player| player.take_turn! if player != @board.crown.contents }
     else
-      @players.each { |player| player.play_turn }
+      @players.each { |player| player.take_turn! }
     end
-    # TODO: collect upkeep if season is winter
-    @board.next_season
-    @crownTicker += 1 if !@board.crown.empty?
-  end
 
-  def game_end?
-    return :fiveYears if @board.year >= 5
-    return :crownWin if @crownTicker >= @crownWinThreshold
-    return :crisisEnd if !@board.activeCrisis.nil? && @board.pastCrises.length >= 2
-    return :familyExtinguished if @players.map(&:no_usable_characters?).any?
-    return false
-  end
-
-  def new_crown
-    @crownTicker = 0
-    @firstCrown = @firstCrown.nil? ? true : false
-    @crownWinThreshold = @firstCrown ? 9 : 6
-  end
-
-  def add_to_log(item)
-    @log << item
-  end
-
-  def print_log
-    @log.each do |item|
-      puts(item.is_a?(TurnAction) ? item.desc : item)
-    end
-  end
-
-  def challenge
-    [true, false].sample
+    @board.bookkeeping!
   end
 
 end

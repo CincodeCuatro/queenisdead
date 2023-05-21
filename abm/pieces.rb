@@ -49,7 +49,7 @@ class Character < Piece
       when :campaign; b.campaign.add(self); set_location(b.campaign)
       when :court; b.court.set(self, pos); set_location(b.court)
       #when :building; bld = b.buildings.get(pos); bld&.manager.set(self); set_location(bld) 
-      when :crown; b.crown.set(self); set_location(b.crown); @player.game.new_crown
+      when :crown; b.crown.set(self); set_location(b.crown); @player.game.board.new_crown
       when :priest; b.priest.set(self); set_location(b.priest)
       when :commander; b.commander.set(self); set_location(b.commander)  
       when :spymaster; b.spymaster.set(self); set_location(b.spymaster)
