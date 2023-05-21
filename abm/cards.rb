@@ -20,6 +20,7 @@ class Building < Card
     @deck = deck # The building-deck this card belongs to
     @workers = Box.new("#{self.class}_#{self.object_id}_workers", @worker_capacity, -> _x, _xs { raise "Cannot add any more workers here #{self}" }) # List of players that have workers on this building (players can appear multiple times)
     @manager = Slot.new("#{self.class}_#{self.object_id}_manager")
+    @lock = false
   end
 
   def name
@@ -62,6 +63,12 @@ class Building < Card
     @manager.remove(x)
     @workers.remove(x)
   end
+
+  def locked? = @lock
+
+  def lock = @lock = true
+
+  def unlock = @lock = false
 
   ## TODO: Add player-boon method
 
@@ -247,6 +254,7 @@ class Farm < Building
   end
 
   def output
+    return if @deck.board.season == :winter
     player_worker_counts = @workers.contents.map(&:player).group_by(&:itself).map { |k, v| [k, v.length] }.to_h 
     player_worker_counts.each do |player, count|
       bounty = { food: ((count < 2) ? 1 : 3) }

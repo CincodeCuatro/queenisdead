@@ -81,9 +81,10 @@ class Game
     @players = Array.new(player_num) { |i| Player.new(self, i) }
     @crownTicker = 0
     @crownWinThreshold = 9
-    @firstCrown = true
+    @firstCrown = nil 
     @log = []
     @players.sample.characters.first.move(:crown)
+    add_to_log("Player #{@board.crown.contents.player.playerID} is king")
   end
 
   def inspect = "GAME"
@@ -97,7 +98,7 @@ class Game
     end
     case game_end_reason
     when :fiveYears
-      add_to_log("Game ended: 5 years have passed with no clear winner")
+      add_to_log("Game ended: 5 years have passed") # TODO: Last crown should win
     when :crownWin
       winner = @board.crown.contents.player.playerID
       add_to_log("Game ended: Player #{winner} successfully held the throne for #{@firstCrown ? 3 : 2} years")
@@ -110,7 +111,10 @@ class Game
   end
 
   def play_round
-    add_to_log("Start of year #{@board.year}") if @board.season == :summer
+    if @board.season == :summer
+      add_to_log("Start of year #{@board.year}")
+      add_to_log(@players.map(&:show).join("\t"))
+    end
     @board.constructed_buildings.map(&:output)
     if !@board.crown.empty?
       @board.crown.contents.player.play_turn
@@ -133,8 +137,8 @@ class Game
 
   def new_crown
     @crownTicker = 0
+    @firstCrown = @firstCrown.nil? ? true : false
     @crownWinThreshold = @firstCrown ? 9 : 6
-    @firstCrown = false
   end
 
   def add_to_log(item)

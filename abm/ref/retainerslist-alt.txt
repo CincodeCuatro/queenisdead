@@ -55,7 +55,7 @@ Jester
 	action(adjacent): swap the target retainer with an a new random retainer from the deck
 	passive: none
 Monk
-	num_cards: 1
+	num_cards: 2
 	perk(self): +1 food, +1 prestige
 	drawback: revealed as heretic, punish master
 	action: none

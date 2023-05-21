@@ -10,7 +10,7 @@ class Board
     :buildingsDeck, :retainersDeck, :lawsDeck, :crisesDeck,
     :buildings, :court, :campaign, :crypt, :dungeon,
     :crown, :priest, :commander, :spymaster, :treasurer, :heir,
-    :currentLaws, :treasury, :buildQueue
+    :currentLaws, :coffer, :buildQueue
   ])
 
   def initialize
@@ -44,7 +44,7 @@ class Board
 
     # Misc
     @currentLaws = []
-    @treasury = Coffer.new
+    @coffer = Coffer.new
     @buildQueue = Box.new(:building_queue, 3, -> c, bq { @buildingsDeck.tuck(bq.shift); bq << c })
     3.times { advance_build_queue }
   end
@@ -58,6 +58,7 @@ class Board
         @pastCrises << @activeCrisis
         @activeCrisis = nil
       end
+      constructed_buildings.each(&:unlock)
     end
     seasons = [:summer, :harvest, :winter]
     @season = seasons[(seasons.index(@season) + 1) % seasons.length]    
@@ -89,6 +90,18 @@ class Board
     when :spymaster; @buildings.has_a?(Tavern)
     when :treasurer; @buildings.has_a?(Bank)
     when :heir; true
+    else raise "Unknown office: #{office_name}"
+    end
+  end
+
+  def get_office(office_name)
+    case office_name
+    when :crown; return @crown
+    when :priest; return @priest
+    when :commander; return @commander
+    when :spymaster; return @spymaster
+    when :treasurer; return @treasurer
+    when :heir; return @heir
     else raise "Unknown office: #{office_name}"
     end
   end

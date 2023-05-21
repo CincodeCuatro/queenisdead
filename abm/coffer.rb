@@ -17,4 +17,8 @@ class Coffer
   def take(amounts)
     give(amounts.transform_values { |x| -1 * x })
   end
+
+  def show
+    "[#{@gold}, #{@food}, #{@prestige}]"
+  end
 end

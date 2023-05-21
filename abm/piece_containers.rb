@@ -114,7 +114,11 @@ class Ring
   end
 
   def has_a?(type)
-    @contents.map { |slot| slot.contents&.is_a?(type) }.any
+    @contents.map { |slot| slot.contents&.is_a?(type) }.any?
+  end
+
+  def full?
+    @contents.map { |s| !s.empty? }.all?
   end
 
   #Checks adjacency between two positions, mainly used by characters to use abilities of their Retainers
