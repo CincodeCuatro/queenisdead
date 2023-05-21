@@ -104,6 +104,7 @@ class Game
     when :crisisEnd
       add_to_log("Game ended: realm in crisis")
     when :familyExtinguished
+      loser = @players.filter(&:no_usable_characters?).first
       add_to_log("Game ended: Player #{loser}'s dynasty is dead")
     end
   end

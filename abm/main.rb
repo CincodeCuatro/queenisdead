@@ -1,14 +1,16 @@
 require_relative 'game'
 
 
-t = Tavern.new(nil)
-puts t.is_a?(Building)
 
+=begin
 g = Game.new
 g.play!
 g.print_log
+=end
 
-#p 10000.times.collect { g.play! }.include?(:fiveYears)
+t = Time.now.to_i
+10000.times{ g = Game.new; g.play! }
+puts Time.now.to_i - t
 
 =begin
 t = Tavern.new(nil)
