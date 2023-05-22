@@ -7,5 +7,5 @@ g.print_log
 =end
 
 t = Time.now.to_i
-1.times{ g = Game.new; g.play!; g.print_log }
+1000.times{ g = Game.new; g.play!; g.print_log }
 puts Time.now.to_i - t

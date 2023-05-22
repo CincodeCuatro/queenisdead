@@ -420,13 +420,14 @@ x name heir (oath cards?)
 x use any ability of subordinate (TODO: can refuse sacrificing oath card/prestige)
 x pardon prisoner (target)
 
+# Heir?
+x Heir gets promoted to crown if crown leaves/gets-killed
+
 # Retainers
 - Purchase retainer (if worker/manager in Tavern)
 - Place a retainer on a character
 - Use retainer action
 
-# Heir?
-???
 
 
 ### GOALS ###
