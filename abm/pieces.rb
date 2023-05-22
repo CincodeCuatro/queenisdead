@@ -1,4 +1,5 @@
 require_relative 'piece_containers'
+require_relative 'name_generator'
 
 
 # An item on the board (a building card, a character, a worker, or a retainer card) that has a location and can be moved
@@ -23,13 +24,16 @@ end
 # A Character card
 # An instance will be owned by a player
 class Character < Piece
-  attr_reader :player, :gender, :retainer
+  include NameGen
+  attr_reader :player, :gender, :retainer, :name
+  
 
   # Init
   def initialize(player, gender=nil)
     super()
     @player = player
     @gender = gender || [:male, :female].sample
+    @name = which_gender?(@gender.to_s)
     @retainer = Slot.new("Character_#{object_id}_retainer")
     return self
   end

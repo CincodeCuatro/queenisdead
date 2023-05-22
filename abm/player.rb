@@ -106,7 +106,8 @@ class Player
       move_to_office_actions,
       priest_actions,
       treasurer_actions,
-      commander_actions
+      commander_actions,
+      spymaster_actions
     ].flatten
   end
 
@@ -142,7 +143,7 @@ class Player
   def place_manager_actions
     return [] if free_characters.empty?
     bs = @board.constructed_buildings.filter { |b| b.manager.empty? }
-    bs.map { |b| Action.new(self, "Moved character to #{b.name}", ->{ place_manager(b) }) }
+    bs.map { |b| Action.new(self, "Moved #{free_characters.first.name} to #{b.name}", ->{ place_manager(b) }) }
   end
 
   # Move a character from a building to another manager-less building
@@ -159,8 +160,8 @@ class Player
     return [] if free_characters.empty?
     @board.constructed_buildings.filter { |b| !b.manager.empty? && b.manager.contents != self && !b.locked? }.map { |b|
       ChallengeAction.new(self,
-        "Took over #{b.name} and expelled all workers", ->{ b.vacate; free_characters.first.move(b); b.lock },
-        "Died trying to take over #{b.name}", ->{ free_characters.first.kill; b.lock }
+        "#{free_characters.first.name} took over #{b.name} and expelled all workers", ->{ b.vacate; free_characters.first.move(b); b.lock },
+        "#{free_characters.first.name} died trying to take over #{b.name}", ->{ free_characters.first.kill; b.lock }
       )
     }
   end
@@ -169,7 +170,7 @@ class Player
   def court_actions
     return [] if free_characters.empty? || @coffer.prestige <= 2 || @board.court.full?
     [Action.new(self,
-      "Moved character into court",
+      "Moved #{free_characters.first.name} into court",
       ->{ free_characters.first.move(:court, @board.court.first_free_pos); @coffer.take({prestige: 2}) }
     )]
   end
@@ -177,13 +178,13 @@ class Player
   # Send a free character on campaign
   def campaign_actions
     return [] if free_characters.empty? || @board.campaign.full?
-    [Action.new(self, "Sent character on campaign", ->{ free_characters.first.move(:campaign) })]
+    [Action.new(self, "Sent #{free_characters.first.name} on campaign", ->{ free_characters.first.move(:campaign) })]
   end
 
   # Recall an assigned character back to the player's hand
   def recall_character_actions
     @characters.filter { |c| ![:hand, :crypt, :dungeon].include?(c.where_am_i?) }.map { |c|
-      Action.new(self, "Recalled character from #{c.where_am_i?.to_s}", ->{ c.move(nil) })
+      Action.new(self, "Recalled #{c.name} from #{c.where_am_i?.to_s}", ->{ c.move(nil) })
     }
   end
 
@@ -194,7 +195,7 @@ class Player
     offices = [:priest, :treasurer, :commander, :spymaster]
     offices.filter! { |office| @board.office_available?(office) && @board.get_office(office).empty? }
     offices.map { |office|
-      Action.new(self, "Moved character into office: #{office.to_s.capitalize}", ->{ characters_in_court.first.move(office) })
+      Action.new(self, "Moved #{characters_in_court.first.name} into office: #{office.to_s.capitalize}", ->{ characters_in_court.first.move(office) })
     }
   end
 
@@ -261,7 +262,7 @@ class Player
       ChallengeAction.new(self,
         "The Commander has punished Player #{c.player.id}",
         ->{ c.punish },
-        "Player #{c.player.id} managed to escape the long arm of the law",
+        "Player #{c.name} managed to escape the long arm of the law",
         ->{}
       )
     }
@@ -282,7 +283,24 @@ class Player
 
 end
 
+  # Spymaster abilities. Blackmail, Peek at top card (not impelmented)
+  def spymaster_actions
+    return [] if !has_office?(:spymaster)
+    spymaster_blackmail_actions
+  end
 
+  #Blackmail players who have workers present in the tavern 
+  def spymaster_blackmail_actions
+    other_players
+    .filter { |player| player.worked_buildings.all? { |b| b.is_a?(Tavern)} }
+    .flatten
+    .map { |player|
+      Action.new(self,
+        "The Spymaster has collected evidence to blackmail visitors in the Tavern", -> { player.take({prestige: 2})} #not sure if it takes prestige from each player
+      )
+    }
+
+  end
 
 =begin
 
