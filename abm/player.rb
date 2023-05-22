@@ -4,6 +4,9 @@ require_relative 'actions'
 
 
 class Player
+
+  # Print smaller info for debug (remove for final project)
+  def inspect = "#{self.class.to_s.upcase}-#{self.object_id}"
     
   attr_reader :game, :id, :workers, :characters, :retainers, :coffer
 
@@ -39,6 +42,7 @@ class Player
 
   # Render player status
   def show = "P#{@id} #{@coffer.show}"
+
 
 
   ### Character Piece Management Helper Methods ###
@@ -107,7 +111,8 @@ class Player
       priest_actions,
       treasurer_actions,
       commander_actions,
-      spymaster_actions
+      spymaster_actions,
+      crown_actions
     ].flatten
   end
 
@@ -275,13 +280,11 @@ class Player
       .map { |b|
         Action.new(self,
           "The Commander has seized a #{b.name} and moved any of his workers in the barracks there",
-          -> { b.vacate;  @workers.filter { |w| w.location.is_a?(Barracks) }.each { |w| w.move(b) } }
+          -> { b.vacate;  @workers.filter { |w| w.location.is_a?(Barracks) }.each { |w| w.move(b) if !b.workers.full? } }
         )
       }
   end
 
-
-end
 
   # Spymaster abilities. Blackmail, Peek at top card (not impelmented)
   def spymaster_actions
@@ -291,16 +294,36 @@ end
 
   #Blackmail players who have workers present in the tavern 
   def spymaster_blackmail_actions
-    other_players
-    .filter { |player| player.worked_buildings.all? { |b| b.is_a?(Tavern)} }
-    .flatten
-    .map { |player|
+    players_in_the_tavern = other_players.filter { |player| player.worked_buildings.any? { |b| b.is_a?(Tavern)} }
+    [Action.new(self,
+      "The Spymaster has collected evidence to blackmail visitors in the Tavern",
+      ->{ players_in_the_tavern.map {|player| player.take({prestige: 2}) } }
+    )]
+  end
+
+  def crown_actions
+    return [] if !has_office?(:crown)
+    crown_pardon_actions + crown_heir_actions
+  end
+
+  def crown_pardon_actions
+    @board.dungeon.contents.compact.map { |c|
+      Action.new(self, "The Crown has pardoned #{c.name}", ->{ c.move(nil) })
+    }
+  end
+
+  def crown_heir_actions
+    @board.court.get_all.map { |c|
       Action.new(self,
-        "The Spymaster has collected evidence to blackmail visitors in the Tavern", -> { player.take({prestige: 2})} #not sure if it takes prestige from each player
+        "The Crown has named #{c.name} as their successor",
+        ->{ @board.heir.contents&.move(nil); c.move(:heir) }
       )
     }
-
   end
+
+end
+
+ 
 
 =begin
 
@@ -335,14 +358,15 @@ x Target character for arreest (challenge if not ordered by King)
 x Vacate target building, sends all workers back to respective player hand. Moves workers from barracks into target buildng
 
 # Spymaster
-- peek at any deck (Crisis, law, retainer)
-- peak at retainer in play/on board(reveal)
+? peek at any deck (Crisis, law, retainer)
+? peak at retainer in play/on board(reveal)
+x Take presitige from everyone with a worker in the tavern (blackmail)
 
 # Crown
 x build at half cost (passive)
-- name heir        
+x name heir (oath cards?)
 - use any ability of subordinate (can refuse sacrificing oath card/prestige)
-- pardon prisoner (target)
+x pardon prisoner (target)
 
 # Retainers
 - Purchase retainer (if worker/manager in Tavern)

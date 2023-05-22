@@ -22,13 +22,9 @@ class Slot
     end
   end
 
-  def clear
-    @contents = nil
-  end
+  def clear = @contents = nil
 
-  def empty?
-    @contents.nil?
-  end
+  def empty? = @contents.nil?
 end
 
 # A container for any number of pieces which are never retrieved
@@ -41,9 +37,7 @@ class Bag
     @contents = []
   end
 
-  def add(piece)
-    @contents << piece
-  end
+  def add(piece) = @contents << piece
 end
 
 # A container for a limited number of game pieces
@@ -59,17 +53,11 @@ class Box
     @contents = []
   end
 
-  def full?
-    @contents.length >= @capacity
-  end
+  def full? = @contents.length >= @capacity
 
-  def add(piece)
-    full? ? @on_overflow.call(piece, @contents) : @contents << piece
-  end
+  def add(piece) = full? ? @on_overflow.call(piece, @contents) : @contents << piece
 
-  def get(n)
-    @contents[n % @capacity]
-  end
+  def get(n) = @contents[n % @capacity]
 
   def remove(piece)
     piece.clear_location
@@ -90,9 +78,7 @@ class Ring
     @contents = Array.new(capacity) { |i| Slot.new([name, i]) }
   end
 
-  def set(piece, n)
-    @contents[n % @capacity].set(piece)
-  end
+  def set(piece, n) = @contents[n % @capacity].set(piece)
 
   def remove(x)
     if x.is_a?(Numeric)
@@ -104,22 +90,18 @@ class Ring
   end
 
   #gets contents of a slot at position n
-  def get(n)
-    @contents[n % @capacity].contents
-  end
+  def get(n) = @contents[n % @capacity].contents
+
+  def get_all = @contents.map(&:contents).compact
 
   def index(piece)
     @contents.each_with_index { |i, x| return i if x.contents == piece }
     return nil
   end
 
-  def has_a?(type)
-    @contents.map { |slot| slot.contents&.is_a?(type) }.any?
-  end
+  def has_a?(type) = @contents.map { |slot| slot.contents&.is_a?(type) }.any?
 
-  def full?
-    @contents.map { |s| !s.empty? }.all?
-  end
+  def full? = @contents.map { |s| !s.empty? }.all?
 
   #Checks adjacency between two positions, mainly used by characters to use abilities of their Retainers
   def adjacent?(a, b)

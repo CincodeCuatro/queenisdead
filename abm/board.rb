@@ -5,6 +5,9 @@ require_relative 'coffer'
 
 class Board
 
+  # Print smaller info for debug (remove for final project)
+  def inspect = "#{self.class.to_s.upcase}-#{self.object_id}"
+
   attr_reader(*[
     :season, :activeCrisis, :pastCrises, :sentencing, :year, :firstCrown, :crownTicker,
     :buildingsDeck, :retainersDeck, :lawsDeck, :crisesDeck,

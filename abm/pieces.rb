@@ -5,6 +5,9 @@ require_relative 'name_generator'
 # An item on the board (a building card, a character, a worker, or a retainer card) that has a location and can be moved
 class Piece
 
+  # Print smaller info for debug (remove for final project)
+  def inspect = "#{self.class.to_s.upcase}-#{self.object_id}"
+
   attr_reader :location
 
   def initialize
@@ -24,7 +27,6 @@ end
 # A Character card
 # An instance will be owned by a player
 class Character < Piece
-  include NameGen
   attr_reader :player, :gender, :retainer, :name
   
 
@@ -32,8 +34,8 @@ class Character < Piece
   def initialize(player, gender=nil)
     super()
     @player = player
-    @gender = gender || [:male, :female].sample
-    @name = which_gender?(@gender.to_s)
+    @gender = gender || %w(male female).sample
+    @name = gen_name(@gender)
     @retainer = Slot.new("Character_#{object_id}_retainer")
     return self
   end
@@ -91,7 +93,7 @@ class Character < Piece
   def punish
     case @player.game.board.sentencing
       # TODO: in case of fine sentencing should gold go to the priest?
-      when :fine; @player.take({ gold: 10 }); @player.game.board.priest.contents&.give({ gold: 10 })
+      when :fine; @player.take({ gold: 10 }); @player.game.board.priest.contents&.player&.give({ gold: 10 })
       when :prison;
         d = @player.game.board.dungeon.contents
         dl = d.length

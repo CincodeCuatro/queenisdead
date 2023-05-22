@@ -24,4 +24,6 @@ class Coffer
   def show
     "[#{@gold}, #{@food}, #{@prestige}]"
   end
+
 end
+

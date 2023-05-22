@@ -74,6 +74,9 @@ BUILDING_PLOTS:
 
 class Game
 
+  # Print smaller info for debug (remove for final project)
+  def inspect = "#{self.class.to_s.upcase}-#{self.object_id}"
+
   attr_reader :board, :players
 
   def initialize(player_num=4)
@@ -89,8 +92,8 @@ class Game
 
   # Checks if the game is over, if so returns the reason
   def game_end?
-    return :fiveYears if @board.year >= 5
-    return :crownWin if (@board.firstCrown && (@board.crownTicker >= 9)) || @board.crownTicker >= 6 # TODO: Something fucky here
+    return :fiveYears if @board.year >= 5 
+    return :crownWin if (@board.firstCrown && (@board.crownTicker >= 9)) || (@board.firstCrown == false && @board.crownTicker >= 6) # TODO: Something fucky here
     return :crisisEnd if !@board.activeCrisis.nil? && @board.pastCrises.length >= 2
     return :familyExtinguished if @players.map(&:no_usable_characters?).any?
     return false
@@ -114,7 +117,6 @@ class Game
   # Used as coin flip for failable actions
   # TODO: Implement actual challenges with banner-men
   def challenge = [true, false].sample
-
 
 
   ### Game Logic ###
