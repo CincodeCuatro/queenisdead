@@ -17,6 +17,11 @@ class Action
     "Player #{@player.id}: #{@description}"
   end
 
+  def from_crown
+    @description = "As ordered by the crown: " + @description
+    return self
+  end
+
 end
 
 

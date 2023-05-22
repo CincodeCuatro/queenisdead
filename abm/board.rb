@@ -13,7 +13,7 @@ class Board
     :buildingsDeck, :retainersDeck, :lawsDeck, :crisesDeck,
     :buildings, :court, :campaign, :crypt, :dungeon,
     :crown, :priest, :commander, :spymaster, :treasurer, :heir,
-    :currentLaws, :coffer, :buildQueue
+    :currentLaws, :coffer, :buildQueue, :officeActionLocks
   ])
 
   def initialize
@@ -52,6 +52,7 @@ class Board
     @coffer = Coffer.new
     @buildQueue = Box.new(:building_queue, 3, -> c, bq { @buildingsDeck.tuck(bq.shift); bq << c })
     3.times { advance_build_queue! }
+    @officeActionLocks = {}
   end
 
   ### Info Methods & Calculated Properties ###
@@ -103,6 +104,9 @@ class Board
     upkeep_base.transform_values { |v| v * @buildings.length } 
   end
 
+  # Check if office action has already been used this round
+  def office_action_available?(action) = @officeActionLocks[action].nil?
+
 
   ### Bookkeeping ###
 
@@ -114,6 +118,7 @@ class Board
       unlock_buildings!
     end
     advance_season!
+    unlock_office_actions!
     distribute_resources!
     @crownTicker += 1 if @crown.contents
   end
@@ -141,6 +146,9 @@ class Board
   # Unlock all buildings (so they can be taken over again in the next year)
   def unlock_buildings! = constructed_buildings.each(&:unlock)
 
+  # Unlock office actions (so they can be used again in the next round)
+  def unlock_office_actions! = constructed_buildings.each(&:unlock)
+
   # Go through each built-building and give players with workers there their payout
   def distribute_resources! = constructed_buildings.map(&:output)
 
@@ -161,6 +169,9 @@ class Board
     @crownTicker = 0
     @firstCrown = @firstCrown.nil? ? true : false
   end
+
+  # Lock office action so it can't be performed more than once a round
+  def lock_office_action(action) = @officeActionLocks[action] = true
 
 end
 

@@ -153,7 +153,7 @@ class Game
 
     if !@board.crown.empty?
       @board.crown.contents.player.take_turn!
-      @players.each { |player| player.take_turn! if player != @board.crown.contents }
+      @players.each { |player| player.take_turn! if !player.has_office?(:crown) }
     else
       @players.each { |player| player.take_turn! }
     end

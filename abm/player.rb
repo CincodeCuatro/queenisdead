@@ -87,7 +87,8 @@ class Player
   # Make player take their turn
   def take_turn!
     pa = actions
-    pa.sample&.run(@game)
+    a = pa.sample
+    a&.run(@game)
   end
   
 
@@ -96,7 +97,19 @@ class Player
   # TODO: Break-up other office abilities (like commander)
 
   # All possible actions
+  # N.B. in the case that a player has both the crown and another office this method returns each of that office's actions twice
   def actions
+    possible_actions = base_actions
+    possible_actions.concat(priest_actions) if has_office?(:priest)
+    possible_actions.concat(treasurer_actions) if has_office?(:treasurer)
+    possible_actions.concat(commander_actions) if has_office?(:commander)
+    possible_actions.concat(spymaster_actions) if has_office?(:spymaster)
+    possible_actions.concat(crown_actions) if has_office?(:crown)
+    return possible_actions.flatten
+  end
+
+  # Base actions all players can do
+  def base_actions
     [
       build_actions,
       place_worker_actions,
@@ -107,13 +120,8 @@ class Player
       court_actions,
       campaign_actions,
       recall_character_actions,
-      move_to_office_actions,
-      priest_actions,
-      treasurer_actions,
-      commander_actions,
-      spymaster_actions,
-      crown_actions
-    ].flatten
+      move_to_office_actions
+    ]
   end
 
   # Build a building from the build queue
@@ -206,119 +214,163 @@ class Player
 
   # Priest abilities. Collect tithes & change sentencing
   def priest_actions
-    return [] if !has_office?(:priest)
+    priest_sentencing_actions + priest_tithe_actions
+  end
+
+  def priest_sentencing_actions
+    return [] if !@board.office_action_available?(:priest_sentencing)
     ([:fine, :prison, :death] - [@board.sentencing]).map { |s|
       Action.new(self,
         "The Priest changed the sentencing to #{s.to_s.upcase}",
-        ->{ @board.set_sentencing(s) }
+        ->{ @board.set_sentencing(s); @board.lock_office_action(:priest_sentencing) }
       )
-    } + [Action.new(self,
+    }
+  end
+
+  def priest_tithe_actions
+    return [] if !@board.office_action_available?(:priest_tithe)
+    [Action.new(self,
       "The Priest has collected a tithe",
       ->{ other_players.each { |player|
         if player.worked_buildings.all? { |b| !b.is_a?(Church) }
           player.take({gold: 2})
           give({gold: 2})
         end
+        @board.lock_office_action(:priest_tithe)
       }}
     )]
   end
 
-  # Treasurer abilities. Tax all players & audit specific player
+  # Treasurer abilities. Tax & audit
   def treasurer_actions
-    return [] if !has_office?(:treasurer)
+     treasurer_tax_actions + treasurer_audit_actions
+  end
+
+  # Treasurer can tax all players
+  def treasurer_tax_actions
+    return [] if !@board.office_action_available?(:treasurer_tax)
+    [Action.new(self,
+      "The Treasurer has collected taxes from all players",
+      ->{ other_players.each do |player|
+          if player.coffer.gold >= 2
+            player.take({gold: 2})
+            @board.coffer.give({gold: 2})
+          else
+            player.take({prestige: 2})
+          end
+        end
+        @board.lock_office_action(:treasurer_tax) 
+      }
+    )]
+  end
+
+  # Treasurer can audit a specific player
+  def treasurer_audit_actions
+    return [] if !@board.office_action_available?(:treasurer_audit)
     other_players.map { |player|
       audit_strength = ((1..6).to_a.sample) + 2
       Action.new(self,
         "The Treasurer has audited player #{player.id} and taken #{audit_strength} gold",
-        ->{ player.take({gold: audit_strength}); @board.coffer.give({gold: audit_strength}) }
+        ->{ player.take({gold: audit_strength}); @board.coffer.give({gold: audit_strength}); @board.lock_office_action(:treasurer_audit) }
       )
-    } + [
-      Action.new(self,
-        "The Treasurer has collected taxes from all players",
-        ->{
-          other_players.each do |player|
-            if player.coffer.gold >= 2
-              player.take({gold: 2})
-              @board.coffer.give({gold: 2})
-            else
-              player.take({prestige: 2})
-            end
-          end
-         }
-      )
-    ]
+    }
   end
 
   # Commander abilities (punish & vacate)
-  def commander_actions
-    return [] if !has_office?(:commander)
-    commander_punish_actions + commander_vacate_actions
+  def commander_actions(from_crown=false)
+    commander_punish_actions(from_crown) + commander_vacate_actions
   end
 
   # Punish a character with equal or less prestige (if challenge successful)
   # TODO: King can punish without challenge
-  def commander_punish_actions
+  def commander_punish_actions(from_crown=false)
+    return [] if !@board.office_action_available?(:commander_punish)
     other_players
     .filter { |player| player.coffer.prestige <= @coffer.prestige }
     .map(&:characters)
     .flatten
     .filter { |c| ![:hand, :crown, :dungeon, :crypt].include?(c.where_am_i?)  }
     .map { |c|
-      ChallengeAction.new(self,
-        "The Commander has punished Player #{c.player.id}",
-        ->{ c.punish },
-        "Player #{c.name} managed to escape the long arm of the law",
-        ->{}
-      )
+      if from_crown
+        Action.new(self,
+          "The Commander has punished Player #{c.player.id}",
+          ->{ c.punish; @board.lock_office_action(:commander_punish) }
+        )
+      else
+        ChallengeAction.new(self,
+          "The Commander has punished Player #{c.player.id}",
+          ->{ c.punish; @board.lock_office_action(:commander_punish) },
+          "Player #{c.name} managed to escape the long arm of the law",
+          ->{ @board.lock_office_action(:commander_punish) }
+        )
+      end
     }
   end
 
   # Vacate a building and move all the commander's workers in the barracks there
   def commander_vacate_actions
+    return [] if !@board.office_action_available?(:commander_vacate)
     @board.constructed_buildings
       .filter { |b| !b.is_a?(Barracks) && !b.workers.contents.any? { |w| w.player == self } }
       .map { |b|
         Action.new(self,
           "The Commander has seized a #{b.name} and moved any of his workers in the barracks there",
-          -> { b.vacate;  @workers.filter { |w| w.location.is_a?(Barracks) }.each { |w| w.move(b) if !b.workers.full? } }
+          -> {
+            b.vacate
+            @workers.filter { |w| w.location.is_a?(Barracks) }.each { |w| w.move(b) if !b.workers.full? }
+            @board.lock_office_action(:commander_vacate)
+          }
         )
       }
   end
 
-
   # Spymaster abilities. Blackmail, Peek at top card (not impelmented)
   def spymaster_actions
-    return [] if !has_office?(:spymaster)
     spymaster_blackmail_actions
   end
 
-  #Blackmail players who have workers present in the tavern 
+  # Blackmail players who have workers present in the tavern 
   def spymaster_blackmail_actions
+    return [] if !@board.office_action_available?(:spymaster_blackmail)
     players_in_the_tavern = other_players.filter { |player| player.worked_buildings.any? { |b| b.is_a?(Tavern)} }
     [Action.new(self,
       "The Spymaster has collected evidence to blackmail visitors in the Tavern",
-      ->{ players_in_the_tavern.map {|player| player.take({prestige: 2}) } }
+      ->{ players_in_the_tavern.map {|player| player.take({prestige: 2}) }; @board.lock_office_action(:spymaster_blackmail) }
     )]
   end
 
+  # Crown actions. Pardon, name heir, and all sub-office actions
   def crown_actions
-    return [] if !has_office?(:crown)
-    crown_pardon_actions + crown_heir_actions
+    crown_pardon_actions + crown_heir_actions + crown_delegate_actions
   end
 
+  # Free a character from the dungeon
   def crown_pardon_actions
+    return [] if !@board.office_action_available?(:crown_pardon)
     @board.dungeon.contents.compact.map { |c|
-      Action.new(self, "The Crown has pardoned #{c.name}", ->{ c.move(nil) })
+      Action.new(self, "The Crown has pardoned #{c.name}", ->{ c.move(nil); @board.lock_office_action(:crown_pardon) })
     }
   end
 
+  # Name an heir
   def crown_heir_actions
+    return [] if !@board.office_action_available?(:crown_heir)
     @board.court.get_all.map { |c|
       Action.new(self,
         "The Crown has named #{c.name} as their successor",
-        ->{ @board.heir.contents&.move(nil); c.move(:heir) }
+        ->{ @board.heir.contents&.move(nil); c.move(:heir); @board.lock_office_action(:crown_heir) }
       )
     }
+  end
+
+  # Actions of any other non-empty office
+  def crown_delegate_actions
+    delegate_actions = []
+    delegate_actions.concat(priest_actions) if !@board.priest.empty?
+    delegate_actions.concat(treasurer_actions) if !@board.treasurer.empty?
+    delegate_actions.concat(commander_actions(true)) if !@board.commander.empty?
+    delegate_actions.concat(spymaster_actions) if !@board.spymaster.empty?
+    delegate_actions.map(&:from_crown)
   end
 
 end
@@ -365,7 +417,7 @@ x Take presitige from everyone with a worker in the tavern (blackmail)
 # Crown
 x build at half cost (passive)
 x name heir (oath cards?)
-- use any ability of subordinate (can refuse sacrificing oath card/prestige)
+x use any ability of subordinate (TODO: can refuse sacrificing oath card/prestige)
 x pardon prisoner (target)
 
 # Retainers
