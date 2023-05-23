@@ -60,6 +60,11 @@ class Building < Card
     ip.uniq
   end
 
+  # Returns the number of workers the given player has working in this buildings
+  def player_worker_num(player)
+    @workers.contents.filter { |x| x.player == player }.length
+  end
+
   # Forces manager and workers off this building (and back to their owner's hand)
   def vacate
     @manager.contents&.move(nil)
@@ -72,11 +77,16 @@ class Building < Card
     @workers.remove(x)
   end
 
+  ## Take-Over Lock
+
   def locked? = @lock
 
   def lock = @lock = true
 
   def unlock = @lock = false
+
+
+  ## Effects
 
   def build_effects = Effects.new({})
 
@@ -201,16 +211,32 @@ end
 ### Building Cards ###
 ######################
 
-#Visit the Apothecary before a Plague Crisis to save family characters in play
+# Visit the Apothecary before a Plague Crisis to save family characters in play
 class Apothecary < Building
   def initialize(deck)
     @cost = 6
     @worker_capacity = 3
     super(deck)
   end
+
+  def build_effects = Effects.new({})
+
+  def place_worker_effects(player)
+    return Effects.new({}) if player_worker_num(player) >= 1
+    Effects.new({ risk: -2 })
+  end
+
+  def remove_worker_effects(player)
+    return Effects.new({risk: -2}) if player_worker_num(player) == 1
+    Effects.new({})
+  end
+
+  def place_manager_effects(player) = Effects.new({ general: -8 })
+
+  def remove_manager_effects(player) = Effects.new({})
 end
 
-#Unlocks Lord Treasurer position when constructed, generates +2 gold when occupied
+# Unlocks Lord Treasurer position when constructed, generates +2 gold when occupied
 class Bank < Building
   def initialize(deck)
     @cost = 8
@@ -228,9 +254,28 @@ class Bank < Building
       w.player.give(bounty)
     end
   end
+
+  def build_effects = Effects.new({gold: 5, power: 2})
+
+  def place_worker_effects(player)
+    (@manager.contents&.player == player) ? Effects.new({gold: 4}) : Effects.new({gold: 2})
+  end
+
+  def remove_worker_effects(player)
+    (@manager.contents&.player == player) ? Effects.new({gold: -4}) : Effects.new({gold: -2})
+  end
+
+  def place_manager_effects(player)
+    player_worker_num(player) == 1 ? Effects.new({gold: 4}) : Effects.new({gold: 2})
+  end
+
+  def remove_manager_effects(player)
+    player_worker_num(player) == 1 ? Effects.new({gold: -4}) : Effects.new({gold: -2})
+  end
+
 end
 
-#Unlocks Commander position when constructed. Special action: When Commander uses action to vacate a building, they may place workers currently in the Barracks in the new building
+# Unlocks Commander position when constructed. Special action: When Commander uses action to vacate a building, they may place workers currently in the Barracks in the new building
 class Barracks < Building
   def initialize(deck)
     @cost = 6 
@@ -238,9 +283,24 @@ class Barracks < Building
     @office_unlock = :commander
     super(deck)
   end
+
+  def build_effects = Effects.new({power: 3})
+
+  def place_worker_effects(player)
+    player.has_office?(:commander) ? Effects.new({power: 1}) : Effects.new({general: -2})
+  end
+
+  def remove_worker_effects(player)
+    player.has_office?(:commander) ? Effects.new({power: -1}) : Effects.new({})
+  end
+
+  def place_manager_effects(player) =  Effects.new({general: -8})
+
+  def remove_manager_effects(player) = Effects.new({})
+
 end
 
-#Unlocks High Priest position when constructed. For every 2 workers owned by the same player generate +1 prestige
+# Unlocks High Priest position when constructed. For every 2 workers owned by the same player generate +1 prestige
 class Church < Building
   def initialize(deck)
     @cost = 6
@@ -259,9 +319,24 @@ class Church < Building
       player.give(bounty) if count >= 2
     end
   end
+
+  def build_effects = Effects.new({power: 2, prestige: 1})
+
+  def place_worker_effects(player) = Effects.new({risk: -1, prestige: 1})
+
+  def remove_worker_effects(player) = Effects.new({risk: 1, prestige: -1})
+
+  def place_manager_effects(player)
+    player_worker_num(player) >= 1 ? Effects.new({prestige: 3}) : Effects.new({prestige: 0.5})
+  end
+
+  def remove_manager_effects(player)
+    player_worker_num(player) >= 1 ? Effects.new({prestige: -3}) : Effects.new({})
+  end
+
 end
 
-#Fallow during winter season. Summer Generates +1 food per occupied space and +3 if the same player owns both spaces. During Harvest season generates +2 food per space, and +6 if one player owns both spaces.
+# Fallow during winter season. Summer Generates +1 food per occupied space and +3 if the same player owns both spaces. During Harvest season generates +2 food per space, and +6 if one player owns both spaces.
 class Farm < Building
   def initialize(deck)
     @cost = 4
@@ -280,9 +355,32 @@ class Farm < Building
       player.give(bounty)
     end
   end
+
+  def build_effects = Effects.new({food: 4})
+
+  def place_worker_effects(player)
+    player_worker_num(player) == 1 ? Effects.new({food: 3}) : Effects.new({food: 1}) 
+  end
+
+  def remove_worker_effects(player)
+    player_worker_num(player) == 2 ? Effects.new({food: -3}) : Effects.new({food: -1})
+  end
+
+  def place_manager_effects(player)
+    return Effects.new({food: 6}) if player_worker_num(player) == 2
+    return Effects.new({food: 2}) if player_worker_num(player) == 1
+    Effects.new({food: 0.5})
+  end
+
+  def remove_manager_effects(player)
+    return Effects.new({food: -6}) if player_worker_num(player) == 2
+    return Effects.new({food: -2}) if player_worker_num(player) == 1
+    Effects.new({})
+  end
+
 end
 
-#Generates +1 prestige for occupying player
+# Generates +1 prestige for occupying player
 class GuildHall < Building
   def initialize(deck)
     @cost = 6
@@ -299,10 +397,21 @@ class GuildHall < Building
       w.player.give(bounty)
     end
   end
+
+  def build_effects = Effects.new({prestige: 1})
+
+  def place_worker_effects(player) = Effects.new({prestige: 1})
+
+  def remove_worker_effects(player) = Effects.new({prestige: -1})
+
+  def place_manager_effects(player) = player_worker_num(player) == 1 ? Effects.new({prestige: 2}) : Effects.new({prestige: 0.5}) 
+
+  def remove_manager_effects(player) = player_worker_num(player) == 1 ? Effects.new({prestige: -2}) : Effects.new({})
+
 end
 
-#Generates +1 gold for each worker, occupying players may exchange food at a base cost of 1 gold per 2 food, and vice versa. 
-#Special - if Lord Treasurer has a representative in the market, generate +1 gold for every transaction made by other players. 
+# Generates +1 gold for each worker, occupying players may exchange food at a base cost of 1 gold per 2 food, and vice versa. 
+# Special - if Lord Treasurer has a representative in the market, generate +1 gold for every transaction made by other players. 
 class Market < Building
   def initialize(deck)
     @cost = 6
@@ -319,18 +428,40 @@ class Market < Building
       w.player.give(bounty)
     end
   end
+
+  def build_effects = Effects.new({gold: 4})
+
+  def place_worker_effects(player) = Effects.new({gold: 1})
+
+  def remove_worker_effects(player) = Effects.new({gold: -1})
+
+  def place_manager_effects(player) = player_worker_num(player) >= 1 ? Effects.new({gold: 2}) : Effects.new({gold: 0.5}) 
+
+  def remove_manager_effects(player) = player_worker_num(player) >= 1 ? Effects.new({gold: -2}) : Effects.new({})
+
 end
 
-#Occupying this building at the end of the year will allow the player to regain a previously used Bannermen card. 
+# Occupying this building at the end of the year will allow the player to regain a previously used Bannermen card. 
 class MercenaryCamp < Building
   def initialize(deck)
     @cost = 6
     @worker_capacity = 1
     super(deck)
   end
+
+  def build_effects = Effects.new({general: -8})
+
+  def place_worker_effects(player) = Effects.new({general: -8})
+
+  def remove_worker_effects(player) = Effects.new({})
+
+  def place_manager_effects(player) = Effects.new({general: -8})
+
+  def remove_manager_effects(player) = Effects.new({})
+
 end
 
-#Generates +1 gold per occupied space. If the same player occupies both generate +4 gold and +1 prestige
+# Generates +1 gold per occupied space. If the same player occupies both generate +4 gold and +1 prestige
 class Mine < Building
   def initialize(deck)
     @cost = 10
@@ -348,11 +479,34 @@ class Mine < Building
       player.give(bounty)
     end
   end
+
+  def build_effects = Effects.new({gold: 6})
+
+  def place_worker_effects(player)
+    player_worker_num(player) == 1 ? Effects.new({gold: 4}) : Effects.new({gold: 1}) 
+  end
+
+  def remove_worker_effects(player)
+    player_worker_num(player) == 2 ? Effects.new({gold: -4}) : Effects.new({gold: -1})
+  end
+
+  def place_manager_effects(player)
+    return Effects.new({gold: 8, prestige: 4}) if player_worker_num(player) == 2
+    return Effects.new({gold: 2}) if player_worker_num(player) == 1
+    Effects.new({gold: 0.5})
+  end
+
+  def remove_manager_effects(player)
+    return Effects.new({gold: -8, prestige: -4}) if player_worker_num(player) == 2
+    return Effects.new({gold: -2}) if player_worker_num(player) == 1
+    Effects.new({})
+  end
+
 end
 
-#Unlocks Spymaster position. 
-#Visiting the tavern with a worker or family character allows purchase of retainer for 3 gold.
-#Special - Dice game, minimum 2 gold bet, roll a dice, 5 or higher to double the bet. May also challenge other players in tavern. 
+# Unlocks Spymaster position. 
+# Visiting the tavern with a worker or family character allows purchase of retainer for 3 gold.
+# Special - Dice game, minimum 2 gold bet, roll a dice, 5 or higher to double the bet. May also challenge other players in tavern. 
 class Tavern < Building
   def initialize(deck)
     @cost = 4 
@@ -360,6 +514,17 @@ class Tavern < Building
     @office_unlock = :spymaster
     super(deck)
   end
+
+  def build_effects = Effects.new({power: 3})
+
+  def place_worker_effects(player) = Effects.new({power: 1, risk: 1})
+
+  def remove_worker_effects(player) = Effects.new({power: -1, risk: -1})
+
+  def place_manager_effects(player) = Effects.new({power: 1, risk: 1, general: -1})
+
+  def remove_manager_effects(player) = Effects.new({power: -1, risk: -1, general: 1})
+
 end
 
 
@@ -368,7 +533,7 @@ end
 ### Retainer Cards ###
 ######################
 
-#The Barber keeps your character well manicured in court earning +2 prestige when called on. Beware his treacherous blade. 
+# The Barber keeps your character well manicured in court earning +2 prestige when called on. Beware his treacherous blade. 
 class Barber < Retainer
   def perk
     @master.player.give({ prestige: 2 })
@@ -381,7 +546,7 @@ class Barber < Retainer
   end
 end
 
-#The Bard can sing your priases in court earning +2 prestige. He may also insult adjacent characters which lose 2 prestige.
+# The Bard can sing your priases in court earning +2 prestige. He may also insult adjacent characters which lose 2 prestige.
 class Bard < Retainer
   def perk(target)
     if target == @master
@@ -400,7 +565,7 @@ class Bard < Retainer
 
 end
 
-#The Barrister negates upkeep cost for a character on Campaign or imprisoned. If caught in a lie he will be punished accordingly. 
+# The Barrister negates upkeep cost for a character on Campaign or imprisoned. If caught in a lie he will be punished accordingly. 
 class Barrister < Retainer
   def bluff_fail
     super()
@@ -413,11 +578,11 @@ class Barrister < Retainer
   end
 end
 
-#The Bodyguard protects a character from direct attack, namely from the Rogue
+# The Bodyguard protects a character from direct attack, namely from the Rogue
 class BodyGuard < Retainer
 end
 
-#The Courtesan may perform a saucy puppet show gaining +1 gold for all adjacent characters. Beware, infidelity will cost you prestige
+# The Courtesan may perform a saucy puppet show gaining +1 gold for all adjacent characters. Beware, infidelity will cost you prestige
 class Courtesan < Retainer
   def perk
     @master.adjacent.each { |c| c.player.take({ gold: 1 }) }
@@ -430,7 +595,7 @@ class Courtesan < Retainer
   end
 end
 
-#The Cupbearer may gain +1 food by gathering tablescraps. His purpose is to uncover poison, but beware his spoiled food.
+# The Cupbearer may gain +1 food by gathering tablescraps. His purpose is to uncover poison, but beware his spoiled food.
 class Cupbearer < Retainer
   def perk
     @master.player.give({ food: 1 })
@@ -443,13 +608,13 @@ class Cupbearer < Retainer
 end
 
 # TODO: Implement
-#The Eunuch may gain +2 prestige in court.
-#Special - reveal any adjacent retainer card in play and resolve the negative effect on that character. 
-#Special - Visit the tavern and turn this card in to start a Plot
+# The Eunuch may gain +2 prestige in court.
+# Special - reveal any adjacent retainer card in play and resolve the negative effect on that character. 
+# Special - Visit the tavern and turn this card in to start a Plot
 class Eunuch < Retainer
 end
 
-#The Huntmaster gains +3 food for his master on a successful hunt. Beware the hunting accident.
+# The Huntmaster gains +3 food for his master on a successful hunt. Beware the hunting accident.
 class Huntmaster < Retainer
   def perk
     @master.player.give({ food: 3 })
@@ -462,8 +627,8 @@ class Huntmaster < Retainer
   end
 end
 
-#The Jester may gain +1 gold for entertaining guests.
-#Special - Swap the adjacent target retainer with an a new random retainer from the deck
+# The Jester may gain +1 gold for entertaining guests.
+# Special - Swap the adjacent target retainer with an a new random retainer from the deck
 class Jester < Retainer
   def perk
     @master.player.give({ gold: 1 })
@@ -476,7 +641,7 @@ class Jester < Retainer
   end
 end
 
-#The Monk earns +1 food and +1 prestige for his services in court. Beware of his heresey. 
+# The Monk earns +1 food and +1 prestige for his services in court. Beware of his heresey. 
 class Monk < Retainer
   def perk
     @master.player.give({ food: 1, prestige: 1 })
@@ -489,9 +654,9 @@ class Monk < Retainer
   end
 end
 
-#The Physician gains +2 prestige in court for his services. 
-#Special - pay 10 gold and target an adjacent family character to poison. Sending them home. 
-#Countered by Cupbearer
+# The Physician gains +2 prestige in court for his services. 
+# Special - pay 10 gold and target an adjacent family character to poison. Sending them home. 
+# Countered by Cupbearer
 class Physician < Retainer
   def perk
     @master.player.give({ prestige: 2 })
@@ -512,8 +677,8 @@ class Physician < Retainer
   end
 end
 
-#The Rogue - Pay 25 gold and target any character in play. 
-#Countered by the Bodyguard
+# The Rogue - Pay 25 gold and target any character in play. 
+# Countered by the Bodyguard
 class Rogue < Retainer
   def action(target)
     cost = 25

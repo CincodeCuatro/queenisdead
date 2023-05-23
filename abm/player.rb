@@ -149,7 +149,7 @@ class Player
           take({gold: c})
           other_players.each { |player| player.change_rep(self, 1) } # reputation
         },
-        (b.build_effects + {prestige: 1}) * { cost: has_office?(:crown) ? 0.5 : 1 }
+        ((b.build_effects + {reputation: 1}) + { gold: -0.5 * c }) * { gold: has_office?(:crown) ? 0.5 : 1 }
       )
     }
   end

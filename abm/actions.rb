@@ -50,7 +50,7 @@ class Effects
   attr_accessor :effects
   
   def initialize(effects)
-    @effects = { gold: 0, food: 0, prestige: 0, reputation: 0, power: 0, risk: 0, karma: 0 }.merge(effects)
+    @effects = { gold: 0, food: 0, prestige: 0, reputation: 0, power: 0, risk: 0, karma: 0, general: 0 }.merge(effects)
   end
 
   def +(x) = Effects.new(@effects.merge(x.is_a?(Effects) ? x.effects : x) { |_, a, b| a + b })
