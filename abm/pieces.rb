@@ -1,5 +1,5 @@
 require_relative 'piece_containers'
-require_relative 'name_generator'
+require_relative 'utils'
 
 
 # An item on the board (a building card, a character, a worker, or a retainer card) that has a location and can be moved

@@ -1,4 +1,4 @@
-
+require_relative 'utils'
 
 class Action
 
@@ -13,11 +13,11 @@ class Action
 
   def run(game)
     @action.call
-    game.add_to_log(self)
+    game.add_to_log(desc)
   end
 
   def desc
-    "Player #{@player.id}: #{@description}"
+    color_text("Player #{@player.id}: #{@description}", @player.id)
   end
 
   def from_crown

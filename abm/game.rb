@@ -1,5 +1,6 @@
 require_relative 'board'
 require_relative 'player'
+require_relative 'utils'
 
 
 #####################
@@ -106,7 +107,7 @@ class Game
   def add_to_log(item) = @log << item
 
   # Print out the log of all the events that happened this game
-  def print_log = @log.each { |e| puts(e.is_a?(Action) ? e.desc : e) }
+  def print_log = @log.each { |e| puts e }
 
   # Add some info to the log at the start of every year
   def log_new_year
