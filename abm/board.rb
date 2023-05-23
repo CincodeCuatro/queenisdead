@@ -95,8 +95,11 @@ class Board
   # Returns the list of buildings that are actually built
   def constructed_buildings = @buildings.contents.map(&:contents).compact
 
+  # Returns all buildings of the given type that are built
+  def get_buildings_of_type(type) = constructed_buildings.filter { |b| b.is_a?(type) }
+
   # Returns the list of buildings that have no manager
-  def managerless_buildings = constructed_building.filter { |b| b.manager.empty? }
+  def managerless_buildings = constructed_buildings.filter { |b| b.manager.empty? }
 
   # Realm upkeep increases with each building constructed, must be paid in full to avert crisis at the end of a year (3rd season)
   def realm_upkeep

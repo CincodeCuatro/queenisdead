@@ -2,10 +2,13 @@
 
 class Action
 
-  def initialize(player, desc, action)
+  attr_accessor :effects
+
+  def initialize(player, desc, action, effects)
     @player = player
     @description = desc
     @action = action
+    @effects = effects.is_a?(Hash) ? Effects.new(effects) : effects
   end
 
   def run(game)
@@ -29,17 +32,44 @@ end
 
 class ChallengeAction
 
-  def initialize(player, succ_desc, succ_action, fail_desc, fail_action)
-    @success = Action.new(player, succ_desc, succ_action)
-    @failure = Action.new(player, fail_desc, fail_action)
+  attr_accessor :effects
+
+  def initialize(success, failure)
+    @success = success
+    @failure = failure
+    @effects = success.effects + { risk: 3 }
   end
 
-  def run(game)
-    if game.challenge
-      @success.run(game)
-    else
-      @failure.run(game)
-    end
-  end
+  def run(game) = game.challenge ? @success.run(game) : @failure.run(game)
 
 end
+
+
+class Effects
+
+  attr_accessor :effects
+  
+  def initialize(effects)
+    @effects = { gold: 0, food: 0, prestige: 0, reputation: 0, power: 0, risk: 0, karma: 0 }.merge(effects)
+  end
+
+  def +(x) = Effects.new(@effects.merge(x.is_a?(Effects) ? x.effects : x) { |_, a, b| a + b })
+
+  def *(x) = Effects.new(@effects.merge(x.is_a?(Effects) ? x.effects : x) { |_, a, b| a * b })
+
+  def inverse = Effects.new(@effects.transform_values { |v| v * -1 })
+
+  def scale(n) = Effects.new(@effects.transform_values { |v| n * v })
+
+end
+
+
+=begin
+### GOALS ###
+- Gold
+- Food
+- Prestige
+- Power
+- Risk
+- Karma
+=end

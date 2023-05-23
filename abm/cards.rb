@@ -1,5 +1,6 @@
 require_relative 'piece_containers'
 require_relative 'pieces'
+require_relative 'actions'
 
 
 #############################
@@ -52,6 +53,13 @@ class Building < Card
     end
   end
 
+  # Returns list of players with pieces/characters in a building
+  def involved_players
+    ip = @workers.contents.map(&:player)
+    ip << @manager.contents.player if !@manager.empty?
+    ip.uniq
+  end
+
   # Forces manager and workers off this building (and back to their owner's hand)
   def vacate
     @manager.contents&.move(nil)
@@ -70,7 +78,15 @@ class Building < Card
 
   def unlock = @lock = false
 
-  ## TODO: Add player-boon method
+  def build_effects = Effects.new({})
+
+  def place_worker_effects(player) = Effects.new({})
+
+  def remove_worker_effects(player) = Effects.new({})
+
+  def place_manager_effects(player) = Effects.new({})
+
+  def remove_manager_effects(player) = Effects.new({})
 
 end
 

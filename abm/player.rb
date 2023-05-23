@@ -18,6 +18,7 @@ class Player
     @characters = Array.new(6) { Character.new(self) }
     @retainers = []
     @coffer = Coffer.new({ gold: 20, food: 6, prestige: 6 })
+    @reputations = {}
   end
 
   ### Info Methods & Calculated Properties ###
@@ -39,6 +40,12 @@ class Player
 
   # Returns a list of all the other players in this game (excluding itself)
   def other_players = @game.players - [self]
+
+  # Returns the reputation of a given player to this players
+  def player_rep(player) = @reputations[player.id] || 0
+
+  # Calculate the karma of an action based on affected_players and their reputation to this player
+  def calc_karma(affected_players, scale) = affected_players.map { |player| scale * player_rep(player) }.sum
 
   # Render player status
   def show = "P#{@id} #{@coffer.show}"
@@ -80,6 +87,9 @@ class Player
 
   # Take resources from player
   def take(resources) = @coffer.take(resources)
+
+  # Add or subtract reputation points for the given player
+  def change_rep(player, amount) = @reputations[player.id] = (@reputations[player.id] || 0) + amount
 
 
   ### Game Logic ###
@@ -131,14 +141,30 @@ class Player
     bs = @board.get_build_queue
     bs.map! { |b, c| [b, c/2] } if has_office?(:crown)
     bs.filter! { |b, c| c <= @coffer.gold }
-    bs.map { |b, c| Action.new(self, "Built #{b.name}", ->{ b.build(pos); take({gold: c}) }) }
+    bs.map { |b, c|
+      Action.new(self,
+        "Built #{b.name}",
+        ->{
+          b.build(pos)
+          take({gold: c})
+          other_players.each { |player| player.change_rep(self, 1) } # reputation
+        },
+        (b.build_effects + {prestige: 1}) * { cost: has_office?(:crown) ? 0.5 : 1 }
+      )
+    }
   end
 
   # Assign a free worker to a building with capacity for it
   def place_worker_actions
     return [] if free_workers.empty?
     bs = @board.constructed_buildings.filter { |b| !b.workers.full? }
-    bs.map { |b| Action.new(self, "Moved worker to #{b.name}", ->{ place_worker(b) }) }
+    bs.map { |b|
+      Action.new(self,
+        "Moved worker to #{b.name}",
+        ->{ place_worker(b) },
+        b.place_worker_effects(self)
+      )
+    }
   end
 
   # Move a worker from its current building to another one with capacity
@@ -147,7 +173,11 @@ class Player
     bs = @board.constructed_buildings.filter { |b| !b.workers.full? }
     worked_buildings.map { |b|
       bs.filter { |b2| b != b2 }.map { |b2|
-        Action.new(self, "Moved worker from #{b.name} to #{b2.name}", ->{ reallocate_worker(b, b2) })
+        Action.new(self,
+          "Moved worker from #{b.name} to #{b2.name}",
+          ->{ reallocate_worker(b, b2) },
+          b.place_worker_effects(self) + b2.remove_worker_effects(self)
+        )
       }
     }.flatten
   end
@@ -156,14 +186,24 @@ class Player
   def place_manager_actions
     return [] if free_characters.empty?
     bs = @board.constructed_buildings.filter { |b| b.manager.empty? }
-    bs.map { |b| Action.new(self, "Moved #{free_characters.first.name} to #{b.name}", ->{ place_manager(b) }) }
+    bs.map { |b|
+      Action.new(self,
+        "Moved #{free_characters.first.name} to #{b.name}",
+        ->{ place_manager(b) },
+        b.place_manager_effects(self)
+      )
+    }
   end
 
   # Move a character from a building to another manager-less building
   def reallocate_manager_actions
     @board.constructed_buildings.filter { |b| b.manager.contents == self}.map { |b|
       @board.constructed_buildings.map { |b2| b.manager.empty? }.map { |b2|
-        Action.new(self, "Moved manager from #{b} to #{b2}", ->{ reallocate_manager(b, b2) })
+        Action.new(self,
+          "Moved manager from #{b} to #{b2}",
+          ->{ reallocate_manager(b, b2) },
+          b.place_manager_effects(self) + b2.remove_manager_effects(self)
+        )
       }
     }.flatten
   end
@@ -171,12 +211,32 @@ class Player
   # Attempt to vacate a building and install a free character there
   def takeover_actions
     return [] if free_characters.empty?
-    @board.constructed_buildings.filter { |b| !b.manager.empty? && b.manager.contents != self && !b.locked? }.map { |b|
-      ChallengeAction.new(self,
-        "#{free_characters.first.name} took over #{b.name} and expelled all workers", ->{ b.vacate; free_characters.first.move(b); b.lock },
-        "#{free_characters.first.name} died trying to take over #{b.name}", ->{ free_characters.first.kill; b.lock }
-      )
-    }
+    @board.constructed_buildings
+      .filter { |b| !b.manager.empty? && !b.involved_players.include?(self) && !b.locked? }
+      .map { |b|
+        affected_players = b.involved_players
+        ChallengeAction.new(
+          Action.new(self,
+            "#{free_characters.first.name} took over #{b.name} and expelled all workers",
+            ->{
+              b.vacate
+              free_characters.first.move(b)
+              b.lock
+              affected_players.each { |player| player.change_rep(self, -2) }
+            },
+            b.place_manager_effects(self) + { karma: calc_karma(affected_players, -1) }
+          ),
+          Action.new(self,
+            "#{free_characters.first.name} died trying to take over #{b.name}",
+            ->{
+              free_characters.first.kill
+              b.lock
+              affected_players.each { |player| player.change_rep(self, -1) }
+            },
+            {}
+          )
+        )
+      }
   end
 
   # Move a free character into the court
@@ -184,20 +244,42 @@ class Player
     return [] if free_characters.empty? || @coffer.prestige <= 2 || @board.court.full?
     [Action.new(self,
       "Moved #{free_characters.first.name} into court",
-      ->{ free_characters.first.move(:court, @board.court.first_free_pos); @coffer.take({prestige: 2}) }
+      ->{ free_characters.first.move(:court, @board.court.first_free_pos); @coffer.take({prestige: 2}) },
+      { power: 2, prestige: -2, risk: 1 }
     )]
   end
 
   # Send a free character on campaign
   def campaign_actions
     return [] if free_characters.empty? || @board.campaign.full?
-    [Action.new(self, "Sent #{free_characters.first.name} on campaign", ->{ free_characters.first.move(:campaign) })]
+    [Action.new(self,
+      "Sent #{free_characters.first.name} on campaign",
+      ->{ free_characters.first.move(:campaign) },
+      { gold: 2, risk: 2, prestige: 1 }
+    )]
   end
 
   # Recall an assigned character back to the player's hand
   def recall_character_actions
     @characters.filter { |c| ![:hand, :crypt, :dungeon].include?(c.where_am_i?) }.map { |c|
-      Action.new(self, "Recalled #{c.name} from #{c.where_am_i?.to_s}", ->{ c.move(nil) })
+      Action.new(self,
+        "Recalled #{c.name} from #{c.where_am_i?.to_s}",
+        ->{
+          c.move(nil)
+          other_players.each { |player| player.change_rep(self, 1) }  # reputation
+        },
+        case c.where_am_i?
+        when :building; c.location.remove_manager_effects(self)
+        when :court; { power: -2, risk: -1 }
+        when :campaign; { gold: -2, risk: -2, prestige: -1 } 
+        when :priest; become_priest_effects.inverse
+        when :treasurer; become_priest_effects.inverse
+        when :commander; become_commander_effects.inverse
+        when :spymaster; become_spymaster_effects.inverse
+        when :crown; become_crown_effects.inverse
+        when :heir; { power: -3 }
+        end
+      )
     }
   end
 
@@ -205,12 +287,32 @@ class Player
   def move_to_office_actions
     characters_in_court = @characters.filter { |c| c.where_am_i? == :court }
     return [] if characters_in_court.empty?
-    offices = [:priest, :treasurer, :commander, :spymaster]
+    offices = [:priest, :treasurer, :commander, :spymaster, :crown]
     offices.filter! { |office| @board.office_available?(office) && @board.get_office(office).empty? }
     offices.map { |office|
-      Action.new(self, "Moved #{characters_in_court.first.name} into office: #{office.to_s.capitalize}", ->{ characters_in_court.first.move(office) })
+      Action.new(self,
+        "Moved #{characters_in_court.first.name} into office: #{office.to_s.capitalize}",
+        ->{ characters_in_court.first.move(office) },
+        case office
+        when :priest; become_priest_effects
+        when :treasurer; become_priest_effects
+        when :commander; become_commander_effects
+        when :spymaster; become_spymaster_effects
+        when :crown; become_crown_effects
+        end
+      )
     }
   end
+
+  def become_priest_effects = Effects.new({ power: 3, gold: 2, risk: 2 })
+
+  def become_treasurer_effects = Effects.new({ power: 3, gold: 1, risk: 2 })
+
+  def become_commander_effects = Effects.new({ power: 4, risk: 3 })
+
+  def become_spymaster_effects = Effects.new({ power: 2, risk: 1 })
+
+  def become_crown_effects = Effects.new({ power: 6, gold: 3, risk: 5 })
 
   # Priest abilities. Collect tithes & change sentencing
   def priest_actions
@@ -222,22 +324,36 @@ class Player
     ([:fine, :prison, :death] - [@board.sentencing]).map { |s|
       Action.new(self,
         "The Priest changed the sentencing to #{s.to_s.upcase}",
-        ->{ @board.set_sentencing(s); @board.lock_office_action(:priest_sentencing) }
+        ->{
+          @board.set_sentencing(s)
+          @board.lock_office_action(:priest_sentencing)
+          other_players.each { |player| # reputation
+            player.change_rep(self, {fine: 1, prison: -1, death: -2}[s])
+          }
+        },
+        case s
+        when :fine; { reputation: 1, gold: 2, risk: -1 }
+        when :prison; { reputation: -1, risk: 1 }
+        when :death; { reputation: -2, risk: 2 }
+        end
       )
     }
   end
 
   def priest_tithe_actions
     return [] if !@board.office_action_available?(:priest_tithe)
+    affected_players = other_players.filter{ |player| player.worked_buildings.all? { |b| !b.is_a?(Church) } }
     [Action.new(self,
       "The Priest has collected a tithe",
-      ->{ other_players.each { |player|
-        if player.worked_buildings.all? { |b| !b.is_a?(Church) }
+      ->{
+        affected_players.each { |player|
           player.take({gold: 2})
           give({gold: 2})
-        end
+          player.change_rep(self, -1)
+        }
         @board.lock_office_action(:priest_tithe)
-      }}
+      },
+      { reputation: -2, gold: 2, karma: calc_karma(affected_players, -1) }
     )]
   end
 
@@ -255,12 +371,15 @@ class Player
           if player.coffer.gold >= 2
             player.take({gold: 2})
             @board.coffer.give({gold: 2})
+            player.change_rep(self, -1)
           else
             player.take({prestige: 2})
+            player.change_rep(self, -2)
           end
         end
         @board.lock_office_action(:treasurer_tax) 
-      }
+      },
+      { reputation: -2, karma: calc_karma(other_players, -1) }
     )]
   end
 
@@ -271,7 +390,13 @@ class Player
       audit_strength = ((1..6).to_a.sample) + 2
       Action.new(self,
         "The Treasurer has audited player #{player.id} and taken #{audit_strength} gold",
-        ->{ player.take({gold: audit_strength}); @board.coffer.give({gold: audit_strength}); @board.lock_office_action(:treasurer_audit) }
+        ->{
+          player.take({gold: audit_strength})
+          @board.coffer.give({gold: audit_strength})
+          @board.lock_office_action(:treasurer_audit)
+          player.change_rep(self, -3)
+        },
+        { reputation: -3, karma: calc_karma([player], -1) }
       )
     }
   end
@@ -294,14 +419,32 @@ class Player
       if from_crown
         Action.new(self,
           "The Commander has punished Player #{c.player.id}",
-          ->{ c.punish; @board.lock_office_action(:commander_punish) }
+          ->{
+            c.punish
+            @board.lock_office_action(:commander_punish)
+            c.player.change_rep(self, -2)
+          },
+          { reputation: -2, karma: calc_karma([c.player], -1) }
         )
       else
-        ChallengeAction.new(self,
-          "The Commander has punished Player #{c.player.id}",
-          ->{ c.punish; @board.lock_office_action(:commander_punish) },
-          "Player #{c.name} managed to escape the long arm of the law",
-          ->{ @board.lock_office_action(:commander_punish) }
+        ChallengeAction.new(
+          Action.new(self,
+            "The Commander has punished Player #{c.player.id}",
+            ->{
+              c.punish
+              @board.lock_office_action(:commander_punish)
+              c.player.change_rep(self, -2)
+            },
+            { reputation: -2, karma: calc_karma([c.player], -1) }
+          ),
+          Action.new(self,
+            "Player #{c.name} managed to escape the long arm of the law",
+            ->{
+              @board.lock_office_action(:commander_punish)
+              c.player.change_rep(self, -1)
+            },
+            {}
+          )
         )
       end
     }
@@ -311,15 +454,19 @@ class Player
   def commander_vacate_actions
     return [] if !@board.office_action_available?(:commander_vacate)
     @board.constructed_buildings
-      .filter { |b| !b.is_a?(Barracks) && !b.workers.contents.any? { |w| w.player == self } }
+      .filter { |b| !b.is_a?(Barracks) && !b.involved_players.include?(self) }
       .map { |b|
+        affected_players = b.involved_players
+        workers_in_barracks =  @workers.filter { |w| w.location.is_a?(Barracks) }
         Action.new(self,
-          "The Commander has seized a #{b.name} and moved any of his workers in the barracks there",
+          "The Commander has seized a #{b.name} and moved any of their workers in the barracks there",
           -> {
             b.vacate
-            @workers.filter { |w| w.location.is_a?(Barracks) }.each { |w| w.move(b) if !b.workers.full? }
+            workers_in_barracks.each { |w| w.move(b) if !b.workers.full? }
             @board.lock_office_action(:commander_vacate)
-          }
+            affected_players.each { |player| player.change_rep(self, -3) }
+          },
+          b.place_worker_effects(self).scale([b.worker_capacity, workers_in_barracks.length].min) + { karma: calc_karma(affected_players, -1) }
         )
       }
   end
@@ -331,11 +478,18 @@ class Player
 
   # Blackmail players who have workers present in the tavern 
   def spymaster_blackmail_actions
-    return [] if !@board.office_action_available?(:spymaster_blackmail)
-    players_in_the_tavern = other_players.filter { |player| player.worked_buildings.any? { |b| b.is_a?(Tavern)} }
+    affected_players = @board.get_buildings_of_type(Tavern).first.involved_players
+    return [] if !@board.office_action_available?(:spymaster_blackmail) || !affected_players.empty?
     [Action.new(self,
       "The Spymaster has collected evidence to blackmail visitors in the Tavern",
-      ->{ players_in_the_tavern.map {|player| player.take({prestige: 2}) }; @board.lock_office_action(:spymaster_blackmail) }
+      ->{
+        affected_players.map { |player|
+          player.take({prestige: 2})
+          player.change_rep(self, -1)
+        }
+        @board.lock_office_action(:spymaster_blackmail)
+      },
+      { karma: calc_karma(affected_players, -1) }
     )]
   end
 
@@ -348,7 +502,15 @@ class Player
   def crown_pardon_actions
     return [] if !@board.office_action_available?(:crown_pardon)
     @board.dungeon.contents.compact.map { |c|
-      Action.new(self, "The Crown has pardoned #{c.name}", ->{ c.move(nil); @board.lock_office_action(:crown_pardon) })
+      Action.new(self,
+        "The Crown has pardoned #{c.name}",
+        ->{
+          c.move(nil)
+          @board.lock_office_action(:crown_pardon)
+          c.player.change_rep(self, 2)
+        },
+        { reputation: 1, karma: calc_karma([c.player], 1) }
+      )
     }
   end
 
@@ -358,7 +520,13 @@ class Player
     @board.court.get_all.map { |c|
       Action.new(self,
         "The Crown has named #{c.name} as their successor",
-        ->{ @board.heir.contents&.move(nil); c.move(:heir); @board.lock_office_action(:crown_heir) }
+        ->{
+          @board.heir.contents&.move(nil)
+          c.move(:heir)
+          @board.lock_office_action(:crown_heir)
+          c.player.change_rep(self, 3)
+        },
+        { reputation: 3, karma: calc_karma([c.player], 1) }
       )
     }
   end
