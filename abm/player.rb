@@ -10,7 +10,7 @@ class Player
     
   attr_reader :game, :id, :workers, :characters, :retainers, :coffer
 
-  def initialize(game, id)
+  def initialize(game, id, priorities=nil)
     @game = game
     @board = game.board
     @id = id
@@ -19,6 +19,7 @@ class Player
     @retainers = []
     @coffer = Coffer.new({ gold: 20, food: 6, prestige: 6 })
     @reputations = {}
+    @priorities = priorities.is_a?(Priorities) ? priorities : Priorities.new(priorities)
   end
 
   ### Info Methods & Calculated Properties ###
@@ -46,6 +47,9 @@ class Player
 
   # Calculate the karma of an action based on affected_players and their reputation to this player
   def calc_karma(affected_players, scale) = affected_players.map { |player| scale * player_rep(player) }.sum
+
+  # Calculate action score according to this player's priorities
+  def action_score(action) = (@priorities * action.effects).sum
 
   # Render player status
   def show = "P#{@id} #{@coffer.show}"
@@ -96,9 +100,12 @@ class Player
 
   # Make player take their turn
   def take_turn!
-    pa = actions
-    a = pa.sample
-    a&.run(@game)
+    3.times { perform_action! }
+  end
+
+  def perform_action!
+    pa = actions.shuffle.sort_by { |a| action_score(a) }
+    pa.last&.run(@game)
   end
   
 

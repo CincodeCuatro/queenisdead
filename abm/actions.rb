@@ -61,6 +61,17 @@ class Effects
 
   def scale(n) = Effects.new(@effects.transform_values { |v| n * v })
 
+  def sum = @effects.values.sum
+
+end
+
+class Priorities < Effects
+
+  def initialize(priorities=nil)
+    priorities ||= { gold: rand(-2.0..2), food: rand(-2.0..2), prestige: rand(-2.0..2), reputation: rand(-2.0..2), power: rand(-2.0..2), risk: rand(-2.0..2), karma: rand(-2.0..2) }
+    @effects = { gold: 0, food: 0, prestige: 0, reputation: 0, power: 0, risk: 0, karma: 0, general: 1 }.merge(priorities)
+  end
+
 end
 
 
