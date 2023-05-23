@@ -279,11 +279,11 @@ class Player
         when :building; c.location.remove_manager_effects(self)
         when :court; { power: -2, risk: -1 }
         when :campaign; { gold: -2, risk: -2, prestige: -1 } 
-        when :priest; become_priest_effects.inverse
-        when :treasurer; become_priest_effects.inverse
-        when :commander; become_commander_effects.inverse
-        when :spymaster; become_spymaster_effects.inverse
-        when :crown; become_crown_effects.inverse
+        when :priest; become_priest_effects.inverse + {general: -5}
+        when :treasurer; become_priest_effects.inverse + {general: -5}
+        when :commander; become_commander_effects.inverse + {general: -5}
+        when :spymaster; become_spymaster_effects.inverse + {general: -5}
+        when :crown; become_crown_effects.inverse + {general: -5}
         when :heir; { power: -3 }
         end
       )
@@ -526,7 +526,7 @@ class Player
     return [] if !@board.office_action_available?(:crown_heir)
     @board.court.get_all.map { |c|
       Action.new(self,
-        "The Crown has named #{c.name} as their successor",
+        "The Crown has named #{c.name} (PLayer: #{c.player.id}) as their successor",
         ->{
           @board.heir.contents&.move(nil)
           c.move(:heir)

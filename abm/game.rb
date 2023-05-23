@@ -80,9 +80,9 @@ class Game
 
   attr_reader :board, :players
 
-  def initialize(player_num=4)
+  def initialize(player_num=4, priorities=[])
     @board = Board.new
-    @players = Array.new(player_num) { |i| Player.new(self, i) }
+    @players = Array.new(player_num) { |i| Player.new(self, i, priorities[i]) }
     @log = []
     @players.sample.characters.first.move(:crown)
     add_to_log("Player #{@board.crown.contents.player.id} is king")
@@ -136,15 +136,21 @@ class Game
 
     case game_end_reason
     when :fiveYears
-      add_to_log("Game ended: 5 years have passed") # TODO: Last crown should win
+      winner = @board.crown.contents&.player&.id
+      add_to_log("Game ended: 5 years have passed #{winner ? "(Player #{winner} won)" : '' }")
+      return winner 
     when :crownWin
       winner = @board.crown.contents.player.id
       add_to_log("Game ended: Player #{winner} successfully held the throne for #{@board.firstCrown ? 3 : 2} years")
+      return winner
     when :crisisEnd
       add_to_log("Game ended: realm in crisis")
+      return nil
     when :familyExtinguished
+      winner = @board.crown.contents&.player&.id
       loser = @players.filter(&:no_usable_characters?).first
-      add_to_log("Game ended: Player #{loser}'s dynasty is dead")
+      add_to_log("Game ended: Player #{loser}'s dynasty is dead #{winner ? "(Player #{winner} won)" : '' }")
+      return winner
     end
   end
 
