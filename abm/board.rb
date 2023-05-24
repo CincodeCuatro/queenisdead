@@ -125,6 +125,7 @@ class Board
       unlock_buildings!
       collect_upkeep!
     end
+    unlock_characters!
     advance_season!
     unlock_office_actions!
     distribute_resources!
@@ -148,11 +149,11 @@ class Board
     end
   end
 
-  # Move the building queue forward
-  def advance_build_queue! = @buildQueue.add(@buildingsDeck.draw)
-
   # Unlock all buildings (so they can be taken over again in the next year)
   def unlock_buildings! = constructed_buildings.each(&:unlock)
+
+  # Unlock all characters (so they can be moved again in the next turn)
+  def unlock_characters! = @game.players.each { |player| player.characters.each(&:unlock) }
 
   # Unlock office actions (so they can be used again in the next round)
   def unlock_office_actions! = constructed_buildings.each(&:unlock)
@@ -167,7 +168,12 @@ class Board
       from_player = player.request_upkeep(per_player_amount)
       upkeep_amount.merge! { |_, v1, v2| v1 - v2 }
     }
-    activate_crisis if upkeep_amount.values.sum > 0
+    if upkeep_amount.values.sum > 0
+      @game.add_to_log("Players didn't contribute enough upkeep")
+      activate_crisis
+    else
+      @game.add_to_log("Players have contributed enough upkeep. The realm is safe (for now...)")
+    end
   end
 
 
@@ -193,6 +199,9 @@ class Board
 
   # Lock office action so it can't be performed more than once a round
   def lock_office_action(action) = @officeActionLocks[action] = true
+
+  # Move the building queue forward
+  def advance_build_queue! = @buildQueue.add(@buildingsDeck.draw)
 
 end
 

@@ -17,7 +17,7 @@ class Player
     @workers = Array.new(4) { Worker.new(self) }
     @characters = Array.new(6) { Character.new(self) }
     @retainers = []
-    @coffer = Coffer.new({ gold: 10, food: 6, prestige: 6 })
+    @coffer = Coffer.new({ gold: 15, food: 6, prestige: 6 })
     @reputations = {}
     @priorities = priorities.is_a?(Priorities) ? priorities : Priorities.new(priorities)
   end
@@ -37,7 +37,7 @@ class Player
   def worked_buildings = @board.constructed_buildings.filter { |b| b.workers.contents&.any? { |w| w.player == self }}
 
   # Returns a list of this player's unassigned characters
-  def free_characters = @characters.filter { |c| c.location.nil? }
+  def free_characters = @characters.filter { |c| c.location.nil? && !c.locked? }
 
   # Returns a list of all the other players in this game (excluding itself)
   def other_players = @game.players - [self]
@@ -53,6 +53,39 @@ class Player
 
   # Render player status
   def show = "P#{@id} #{@coffer.show}"
+
+  # Get a string representation of a player's resources (for debugging)
+  def coffer_status = "Coffer{G #{@coffer.gold}, F #{@coffer.food}, P #{@coffer.prestige}}"
+
+  # Get a string representation of a player's workers (for debugging)
+  def worker_status
+    worker_locations = @workers.map(&:where_am_i?).group_by(&:itself).transform_values(&:length)
+    "Workers{" + worker_locations.map{ |l, n| "#{l}: #{n}"}.join(', ') + '}'
+  end
+
+  # Get a string representation of a player's characters (for debugging)
+  def character_status
+    character_locations = @characters.map(&:where_am_i?).group_by(&:itself).transform_values(&:length)
+    "Characters{" + character_locations.map{ |l, n| "#{l}: #{n}"}.join(', ') + '}'
+  end
+
+  # Get a string representation of a player's possible actions (for debugging)
+  def actions_status
+    "#{actions.length} possible actions"
+  end
+
+  # Print all possible actions for this player (for debugging)
+  def dump_actions
+    @game.add_to_log("DUMPING ACTIONS FOR PLAYER #{id}:")
+    actions
+      .sort_by { |a| -1 * action_score(a) }
+      .each { |a| @game.add_to_log("\t\t#{action_score(a)} - #{a.desc}") }
+  end
+
+  # Used to peek inside and see a player's state (for debugging)
+  def status
+    @game.add_to_log(["\tPlayer #{id}:", coffer_status, worker_status, character_status, actions_status].join(' '))
+  end
 
 
 
@@ -100,6 +133,8 @@ class Player
 
   # Make player take their turn
   def take_turn!
+    status
+    dump_actions
     3.times { perform_action! }
   end
 
@@ -136,7 +171,8 @@ class Player
     possible_actions.concat(commander_actions) if has_office?(:commander)
     possible_actions.concat(spymaster_actions) if has_office?(:spymaster)
     possible_actions.concat(crown_actions) if has_office?(:crown)
-    return possible_actions.flatten
+    possible_actions.flatten!
+    return possible_actions
   end
 
   # Base actions all players can do
@@ -170,7 +206,7 @@ class Player
           take({gold: c})
           other_players.each { |player| player.change_rep(self, 1) } # reputation
         },
-        ((b.build_effects + {reputation: 2}) + { gold: -0.5 * c }) * { gold: has_office?(:crown) ? 0.5 : 1 }
+        ((b.build_effects + {reputation: 2})) * { gold: has_office?(:crown) ? 0.5 : 1 }
       )
     }
   end
@@ -190,10 +226,11 @@ class Player
 
   # Move a worker from its current building to another one with capacity
   def reallocate_worker_actions
-    return [] if free_workers.length < @workers.length
+    # return [] if free_workers.length < @workers.length
+    return [] if worked_buildings.empty?
     bs = @board.constructed_buildings.filter { |b| !b.workers.full? }
     worked_buildings.map { |b|
-      bs.filter { |b2| b != b2 }.map { |b2|
+      bs.filter { |b2| b != b2 && b.class != b2.class }.map { |b2|
         Action.new(self,
           "Moved worker from #{b.name} to #{b2.name}",
           ->{ reallocate_worker(b, b2) },
@@ -276,37 +313,39 @@ class Player
     [Action.new(self,
       "Sent #{free_characters.first.name} on campaign",
       ->{ free_characters.first.move(:campaign) },
-      { gold: 2, risk: 2, prestige: 1 }
+      { gold: 1, risk: 3, prestige: 1 }
     )]
   end
 
   # Recall an assigned character back to the player's hand
   def recall_character_actions
-    @characters.filter { |c| ![:hand, :crypt, :dungeon].include?(c.where_am_i?) }.map { |c|
+    @characters.filter { |c| ![:hand, :crypt, :dungeon].include?(c.where_am_i?) && !c.locked? }.map { |c|
+      recall_effects = case c.where_am_i?
+        when :building; c.location.remove_manager_effects(self)
+        when :court; { power: -2, risk: -1 }
+        when :campaign; { gold: -2, risk: -2, prestige: -1 } 
+        when :priest; become_priest_effects.inverse
+        when :treasurer; become_priest_effects.inverse
+        when :commander; become_commander_effects.inverse
+        when :spymaster; become_spymaster_effects.inverse
+        when :crown; become_crown_effects.inverse
+        when :heir; { power: -3 }
+      end
+      recall_effects = Effects.new(recall_effects) if !recall_effects.is_a?(Effects)
       Action.new(self,
         "Recalled #{c.name} from #{c.where_am_i?.to_s}",
         ->{
           c.move(nil)
           other_players.each { |player| player.change_rep(self, 1) }  # reputation
         },
-        case c.where_am_i?
-        when :building; c.location.remove_manager_effects(self) 
-        when :court; { power: -2, risk: -1 }
-        when :campaign; { gold: -2, risk: -2, prestige: -1 } 
-        when :priest; become_priest_effects.inverse + {general: -5}
-        when :treasurer; become_priest_effects.inverse + {general: -5}
-        when :commander; become_commander_effects.inverse + {general: -5}
-        when :spymaster; become_spymaster_effects.inverse + {general: -5}
-        when :crown; become_crown_effects.inverse + {general: -5}
-        when :heir; { power: -3 }
-        end
+        recall_effects + { general: -20 }
       )
     }
   end
 
   # Move a character in the court into a free office position
   def move_to_office_actions
-    characters_in_court = @characters.filter { |c| c.where_am_i? == :court }
+    characters_in_court = @characters.filter { |c| c.where_am_i? == :court && !c.locked? }
     return [] if characters_in_court.empty?
     offices = [:priest, :treasurer, :commander, :spymaster, :crown]
     offices.filter! { |office| @board.office_available?(office) && @board.get_office(office).empty? }
@@ -543,7 +582,7 @@ class Player
         "The Crown has named #{c.name} (PLayer: #{c.player.id}) as their successor",
         ->{
           @board.heir.contents&.move(nil)
-          c.move(:heir)
+          c.lockless_move(:heir)
           @board.lock_office_action(:crown_heir)
           c.player.change_rep(self, 3)
         },

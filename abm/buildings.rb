@@ -33,6 +33,7 @@ class Building < Card
     bs = @deck.board.buildings
     raise "Already a building in position #{pos}" if !bs.get(pos).nil?
     @deck.board.buildQueue.remove(self)
+    @deck.board.advance_build_queue!
     bs.set(self, pos)
     set_location(bs)
   end

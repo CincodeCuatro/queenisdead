@@ -1,8 +1,10 @@
 require_relative 'game'
 require_relative 'actions'
+require_relative 'not_terrible_strats'
 
 
-g = Game.new
+strats = Array.new(4) { Not_terrible_strats.sample }
+g = Game.new(4, strats)
 g.play!
 g.print_log
 

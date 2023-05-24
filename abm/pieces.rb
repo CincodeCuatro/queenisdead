@@ -37,6 +37,7 @@ class Character < Piece
     @gender = gender || %w(male female).sample
     @name = gen_name(@gender)
     @retainer = Slot.new("Character_#{object_id}_retainer")
+    @moveLock = false
     return self
   end
 
@@ -44,6 +45,12 @@ class Character < Piece
   def move(location, pos=nil)
     old_location = @location
     @location&.remove(self) 
+    if location.nil?
+      set_location(nil)
+      lock
+      return
+    end
+    raise "Character cannot move because they are locked" if @moveLock
     b = @player.game.board
     if location.is_a?(Building)
       location.manager.set(self)
@@ -61,16 +68,24 @@ class Character < Piece
         when :spymaster; b.spymaster.set(self); set_location(b.spymaster)
         when :treasurer; b.treasurer.set(self); set_location(b.treasurer)
         when :heir; b.heir.set(self); set_location(b.heir)
-        when nil; set_location(nil)
         else raise "Unknown location: #{location}"
       end
     end
     if old_location == b.crown && !b.heir.empty?
       heir = b.heir.contents
-      heir.move(:crown)
+      heir.lockless_move(:crown)
       @player.game.add_to_log("Heir, #{heir.name}, has been crowned")
     end
+    lock
   end
+
+  def lockless_move(location, pos=nil)
+    lock_status = locked?
+    unlock
+    move(location, pos)
+    lock if lock_status
+  end
+
 
   def where_am_i?
     return :hand if @location.nil?
@@ -91,6 +106,7 @@ class Character < Piece
   end
 
   def kill
+    unlock
     @retainer.contents&.reshuffle
     move(:crypt)
   end
@@ -109,6 +125,16 @@ class Character < Piece
       when :death; kill
     end
   end
+
+
+  ## Move Lock
+
+  def locked? = @moveLock
+
+  def lock = @moveLock = true
+
+  def unlock = @moveLock = false
+
 end
 
 
@@ -134,6 +160,12 @@ class Worker < Piece
       set_location(building)
     end
   end
+
+  def where_am_i?
+    return :hand if @location.nil?
+    @location.name
+  end
+
 end
 
 

@@ -85,7 +85,7 @@ class Game
     @players = Array.new(player_num) { |i| Player.new(self, i, priorities[i]) }
     @log = []
     @players.sample.characters.first.move(:crown)
-    add_to_log("Player #{@board.crown.contents.player.id} is king")
+    add_to_log("Player #{@board.crown.contents.player.id} (#{@board.crown.contents.name}) is crowned")
   end
 
 
@@ -147,15 +147,16 @@ class Game
       return winner 
     when :crownWin
       winner = @board.crown.contents.player.id
-      add_to_log("Game ended: Player #{winner} successfully held the throne for #{@board.firstCrown ? 3 : 2} years")
+      crown = @board.crown.contents.name
+      add_to_log("Game ended: Player #{winner} (#{crown}) successfully held the throne for #{@board.firstCrown ? 3 : 2} years")
       return winner
     when :crisisEnd
       add_to_log("Game ended: realm in crisis")
       return nil
     when :familyExtinguished
-      winner = @board.crown.contents&.player&.id
-      loser = @players.filter(&:no_usable_characters?).first
-      add_to_log("Game ended: Player #{loser}'s dynasty is dead #{winner ? "(Player #{winner} won)" : '' }")
+      crown = @board.crown.contents
+      loser = @players.filter(&:no_usable_characters?).first.id
+      add_to_log("Game ended: Player #{loser}'s dynasty is dead #{crown ? "(Player #{crown.player.id} won with (#{crown.name}) on the throne)" : '' }")
       return winner
     end
   end

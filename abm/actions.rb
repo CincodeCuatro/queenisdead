@@ -2,7 +2,7 @@ require_relative 'utils'
 
 class Action
 
-  attr_accessor :effects
+  attr_accessor :effects, :desc
 
   def initialize(player, desc, action, effects)
     @player = player
@@ -32,12 +32,13 @@ end
 
 class ChallengeAction
 
-  attr_accessor :effects
+  attr_accessor :effects, :desc
 
   def initialize(success, failure)
     @success = success
     @failure = failure
     @effects = success.effects + { risk: 3 }
+    @desc = "( #{success.desc} | #{failure.desc} )"
   end
 
   def run(game) = game.challenge ? @success.run(game) : @failure.run(game)
