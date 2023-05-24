@@ -121,7 +121,7 @@ class Character < Piece
         dl = d.length
         d.push(*[nil, nil]) if dl == 0
         d.push(nil) if dl == 1
-        move(:dungeon)
+        lockless_move(:dungeon)
       when :death; kill
     end
   end

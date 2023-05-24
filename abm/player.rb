@@ -17,9 +17,10 @@ class Player
     @workers = Array.new(4) { Worker.new(self) }
     @characters = Array.new(6) { Character.new(self) }
     @retainers = []
-    @coffer = Coffer.new({ gold: 15, food: 6, prestige: 6 })
+    @coffer = Coffer.new({ gold: 8, food: 6, prestige: 6 })
     @reputations = {}
     @priorities = priorities.is_a?(Priorities) ? priorities : Priorities.new(priorities)
+    @buildLock = false
   end
 
   ### Info Methods & Calculated Properties ###
@@ -79,7 +80,7 @@ class Player
     @game.add_to_log("DUMPING ACTIONS FOR PLAYER #{id}:")
     actions
       .sort_by { |a| -1 * action_score(a) }
-      .each { |a| @game.add_to_log("\t\t#{action_score(a)} - #{a.desc}") }
+      .each { |a| @game.add_to_log("\t\t#{action_score(a)} - #{a.desc} - #{a.effects.show}") }
   end
 
   # Used to peek inside and see a player's state (for debugging)
@@ -133,9 +134,12 @@ class Player
 
   # Make player take their turn
   def take_turn!
-    status
-    dump_actions
-    3.times { perform_action! }
+    # status
+    @buildLock = false
+    3.times {
+      #dump_actions
+      perform_action!
+    }
   end
 
   def perform_action!
@@ -144,15 +148,14 @@ class Player
   end
 
   def request_upkeep(amount)
+    @game.add_to_log("\t\t\t\t" + amount.inspect)
+    status
     gold_given = 0
-    gold_given = amount[:gold] * 0.5 if @coffer.gold > (amount[:gold] * 0.5)
-    gold_given = amount[:gold] if @coffer.gold > (amount[:gold])
-    gold_given = amount[:gold] * 2 if @coffer.gold > (amount[:gold] * 2)
+    [0.5, 1, 2, 3].each { |x| gold_given = amount[:gold] * x if @coffer.gold > (amount[:gold] * x) }
     food_given = 0
-    food_given = amount[:food] * 0.5 if @coffer.food > (amount[:food] * 0.5)
-    food_given = amount[:food] if @coffer.food > (amount[:food])
-    food_given = amount[:food] * 2 if @coffer.food > (amount[:food] * 2)
+    [0.5, 1, 2, 3].each { |x| food_given = amount[:food] * x if @coffer.food > (amount[:food] * x) }
     contribution = { gold: gold_given, food: food_given }
+    @coffer.take(contribution)
     @game.add_to_log("Player #{id} contributed #{contribution.inspect} to the realm's upkeep")
     return contribution
   end
@@ -193,6 +196,7 @@ class Player
 
   # Build a building from the build queue
   def build_actions
+    return [] if @buildLock
     pos = @board.buildings.first_free_pos
     return [] if pos.nil?
     bs = @board.get_build_queue
@@ -204,9 +208,10 @@ class Player
         ->{
           b.build(pos)
           take({gold: c})
+          @buildLock = true
           other_players.each { |player| player.change_rep(self, 1) } # reputation
         },
-        ((b.build_effects + {reputation: 2})) * { gold: has_office?(:crown) ? 0.5 : 1 }
+        (b.build_effects + {reputation: 2, gold: -0.5 * b.cost}) * { gold: has_office?(:crown) ? 0.5 : 1 }
       )
     }
   end
@@ -234,7 +239,7 @@ class Player
         Action.new(self,
           "Moved worker from #{b.name} to #{b2.name}",
           ->{ reallocate_worker(b, b2) },
-          b.place_worker_effects(self) + b2.remove_worker_effects(self)
+          b.place_worker_effects(self) + b2.remove_worker_effects(self)  + { general: -4 }
         )
       }
     }.flatten
@@ -303,7 +308,7 @@ class Player
     [Action.new(self,
       "Moved #{free_characters.first.name} into court",
       ->{ free_characters.first.move(:court, @board.court.first_free_pos); @coffer.take({prestige: 2}) },
-      { power: 2, prestige: -2, risk: 1 }
+      { power: 3, prestige: -2 }
     )]
   end
 
@@ -313,7 +318,7 @@ class Player
     [Action.new(self,
       "Sent #{free_characters.first.name} on campaign",
       ->{ free_characters.first.move(:campaign) },
-      { gold: 1, risk: 3, prestige: 1 }
+      { gold: 1, risk: 5, prestige: 1, food: -2 }
     )]
   end
 
@@ -323,7 +328,7 @@ class Player
       recall_effects = case c.where_am_i?
         when :building; c.location.remove_manager_effects(self)
         when :court; { power: -2, risk: -1 }
-        when :campaign; { gold: -2, risk: -2, prestige: -1 } 
+        when :campaign; { gold: -1, risk: -5, prestige: -1 }
         when :priest; become_priest_effects.inverse
         when :treasurer; become_priest_effects.inverse
         when :commander; become_commander_effects.inverse
@@ -338,7 +343,7 @@ class Player
           c.move(nil)
           other_players.each { |player| player.change_rep(self, 1) }  # reputation
         },
-        recall_effects + { general: -20 }
+        recall_effects + { general: 0 }
       )
     }
   end
@@ -350,16 +355,17 @@ class Player
     offices = [:priest, :treasurer, :commander, :spymaster, :crown]
     offices.filter! { |office| @board.office_available?(office) && @board.get_office(office).empty? }
     offices.map { |office|
-      Action.new(self,
-        "Moved #{characters_in_court.first.name} into office: #{office.to_s.capitalize}",
-        ->{ characters_in_court.first.move(office) },
-        case office
+      appoint_office_effects = case office
         when :priest; become_priest_effects
         when :treasurer; become_priest_effects
         when :commander; become_commander_effects
         when :spymaster; become_spymaster_effects
         when :crown; become_crown_effects
-        end
+      end
+      Action.new(self,
+        "Moved #{characters_in_court.first.name} into office: #{office.to_s.capitalize}",
+        ->{ characters_in_court.first.move(office); take({prestige: 2}) },
+        appoint_office_effects + { prestige: -2 }
       )
     }
   end

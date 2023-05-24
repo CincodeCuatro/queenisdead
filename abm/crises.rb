@@ -50,6 +50,7 @@ class Powderplot < Crisis
   def activate
     @deck.board.game.add_to_log("A powderplot has taken place, all members of the court have been vaporized!")
     @deck.board.court.contents.map(&:contents).compact.map(&:kill)
+    [:crown, :priest, :commander, :treasurer, :spymaster].each { |office| @deck.board.get_office(office).contents&.kill }
   end
 end
 

@@ -64,6 +64,8 @@ class Effects
 
   def sum = @effects.values.sum
 
+  def show = '(' + @effects.map { |k, v| "#{k.to_s[0..1]} #{v.round(3)}"}.join(', ') + ')'
+
 end
 
 class Priorities < Effects

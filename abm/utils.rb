@@ -1,3 +1,5 @@
+require 'json'
+
 =begin
   Assigns a random name to a character based on their gender
   TODO : assign a surname to each player based on color (Red,Blue,Green,Yellow,Orange,Purple,Black)
@@ -18,3 +20,8 @@ def color_text(str, color_index)
 	color_end = color.empty? ? '' : "\e[0m"
   color + str + color_end
 end
+
+
+def save_strats(filename, strats) = File.write(filename, strats.map(&:effects).to_json)
+
+def load_strats(filename) = JSON.parse(File.read(filename)).map { _1.transform_keys(&:to_sym) }

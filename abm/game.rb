@@ -75,6 +75,8 @@ BUILDING_PLOTS:
 
 class Game
 
+  attr_accessor :log
+
   # Print smaller info for debug (remove for final project)
   def inspect = "#{self.class.to_s.upcase}-#{self.object_id}"
 
@@ -144,20 +146,20 @@ class Game
     when :fiveYears
       winner = @board.crown.contents&.player&.id
       add_to_log("Game ended: 5 years have passed #{winner ? "(Player #{winner} won)" : '' }")
-      return winner 
+      return [game_end_reason, winner]
     when :crownWin
       winner = @board.crown.contents.player.id
       crown = @board.crown.contents.name
       add_to_log("Game ended: Player #{winner} (#{crown}) successfully held the throne for #{@board.firstCrown ? 3 : 2} years")
-      return winner
+      return [game_end_reason, winner]
     when :crisisEnd
       add_to_log("Game ended: realm in crisis")
-      return nil
+      return [game_end_reason, nil]
     when :familyExtinguished
       crown = @board.crown.contents
       loser = @players.filter(&:no_usable_characters?).first.id
       add_to_log("Game ended: Player #{loser}'s dynasty is dead #{crown ? "(Player #{crown.player.id} won with (#{crown.name}) on the throne)" : '' }")
-      return winner
+      return [game_end_reason, crown ? crown.player.id : nil]
     end
   end
 

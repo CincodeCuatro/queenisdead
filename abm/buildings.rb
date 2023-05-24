@@ -209,9 +209,15 @@ class Church < Building
 
   def build_effects = Effects.new({power: 2, prestige: 1})
 
-  def place_worker_effects(player) = Effects.new({risk: -1, prestige: 1})
+  def place_worker_effects(player)
+    return Effects.new({prestige: 1}) if player.worked_buildings.any? { |b| b.is_a?(Church) }
+    Effects.new({risk: -0.5, prestige: 1})
+  end
 
-  def remove_worker_effects(player) = Effects.new({risk: 1, prestige: -1})
+  def remove_worker_effects(player)
+    return Effects.new({prestige: -1}) if player.characters.count { |c| c.location.is_a?(Church) } > 1
+    Effects.new({risk: 1, prestige: -1})
+  end
 
   def place_manager_effects(player)
     player_worker_num(player) >= 1 ? Effects.new({prestige: 3}) : Effects.new({prestige: 0.5})

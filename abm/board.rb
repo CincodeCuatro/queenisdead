@@ -107,7 +107,7 @@ class Board
 
   # Realm upkeep increases with each building constructed, must be paid in full to avert crisis at the end of a year (3rd season)
   def realm_upkeep
-    upkeep_base = { gold: 2, food: 2 }
+    upkeep_base = { gold: 1, food: 1 }
     upkeep_base.transform_values { |v| v * constructed_buildings.length } 
   end
 
@@ -119,6 +119,8 @@ class Board
 
   # Takes care of various trackers and other minutia between rounds
   def bookkeeping!
+    campaign_challenges!
+    distribute_resources!
     if end_of_year?
       advance_year!
       advance_crisis!
@@ -128,7 +130,6 @@ class Board
     unlock_characters!
     advance_season!
     unlock_office_actions!
-    distribute_resources!
     @crownTicker += 1 if @crown.contents
   end
 
@@ -156,18 +157,50 @@ class Board
   def unlock_characters! = @game.players.each { |player| player.characters.each(&:unlock) }
 
   # Unlock office actions (so they can be used again in the next round)
-  def unlock_office_actions! = constructed_buildings.each(&:unlock)
+  def unlock_office_actions! = @officeActionLocks = {}
+
+  def campaign_challenges!
+    @campaign.contents.each do |c|
+      if c.player.coffer.food >= 1
+        c.player.take({food: 1})
+        roll = (1..6).to_a.sample
+        case roll
+        when 1
+          c.kill
+          @game.add_to_log("#{c.name} (Player #{c.player.id}) has died on campaign")
+        when (2..5)
+          c.player.give({ gold: (roll + 1) })
+        when 6
+          c.player.give({ gold: 10, prestige: 2 })
+        end
+      else
+        c.kill
+        @game.add_to_log("#{c.name} (Player #{c.player.id}) has died on starved to death on campaign")
+      end
+    end
+  end
 
   # Go through each built-building and give players with workers there their payout
   def distribute_resources! = constructed_buildings.map(&:output)
 
   def collect_upkeep!
     upkeep_amount = realm_upkeep
+    @game.add_to_log("Time to collect the realm's upkeep! #{upkeep_amount[:gold]} gold & #{upkeep_amount[:food]} food needed...")
+    
+    treasury_gold_contribution = [@coffer.gold, upkeep_amount[:gold]].min
+    @coffer.take({gold: treasury_gold_contribution})
+    upkeep_amount[:gold] -= treasury_gold_contribution
+    treasury_food_contribution = [@coffer.food, upkeep_amount[:food]].min
+    @coffer.take({food: treasury_food_contribution})
+    upkeep_amount[:food] -= treasury_food_contribution
+    @game.add_to_log("#{treasury_gold_contribution} gold & #{treasury_food_contribution} food has been paid out of the royal treasury. #{upkeep_amount[:gold]} gold & #{upkeep_amount[:food]} food still needed...")
+
     per_player_amount = upkeep_amount.transform_values { |v| v / @game.players.length }
     @game.players.each { |player|
       from_player = player.request_upkeep(per_player_amount)
-      upkeep_amount.merge! { |_, v1, v2| v1 - v2 }
+      from_player.each {|k, v| upkeep_amount[k] -= v }
     }
+    @game.add_to_log("Upkeep balance #{upkeep_amount}")
     if upkeep_amount.values.sum > 0
       @game.add_to_log("Players didn't contribute enough upkeep")
       activate_crisis
