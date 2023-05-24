@@ -81,7 +81,7 @@ class Game
   attr_reader :board, :players
 
   def initialize(player_num=4, priorities=[])
-    @board = Board.new
+    @board = Board.new(self)
     @players = Array.new(player_num) { |i| Player.new(self, i, priorities[i]) }
     @log = []
     @players.sample.characters.first.move(:crown)
@@ -112,6 +112,12 @@ class Game
   # Add some info to the log at the start of every year
   def log_new_year
     add_to_log("Start of year #{@board.year}")
+    add_to_log(@players.map(&:show).join("\t"))
+  end
+
+   # Add some info to the log at the start of every season
+   def log_new_season
+    add_to_log("Start of #{@board.season.upcase}")
     add_to_log(@players.map(&:show).join("\t"))
   end
 
@@ -159,13 +165,15 @@ class Game
     log_new_year if @board.beginning_of_year?
 
     if !@board.crown.empty?
-      @board.crown.contents.player.take_turn!
-      @players.each { |player| player.take_turn! if !player.has_office?(:crown) }
+      crown_player = @board.crown.contents.player
+      crown_player.take_turn!
+      (@players - [crown_player]).each(&:take_turn!)
     else
       @players.each { |player| player.take_turn! }
     end
 
     @board.bookkeeping!
+    log_new_season
   end
 
 end

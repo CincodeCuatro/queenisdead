@@ -1,11 +1,11 @@
 require_relative 'game'
 require_relative 'actions'
 
-=begin
+
 g = Game.new
 g.play!
 g.print_log
-=end
+
 
 t = Time.now.to_i
 
@@ -26,10 +26,10 @@ def find_best_strategies(strategies, top_n)
     .take(top_n)
 end
 
-tier_3 = Array.new(10000) { Priorities.new }
-tier_2 = find_best_strategies(tier_3, 1000)
-tier_1 = find_best_strategies(tier_2.map(&:first), 100)
+#tier_3 = Array.new(10000) { Priorities.new }
+#tier_2 = find_best_strategies(tier_3, 1000)
+#tier_1 = find_best_strategies(tier_2.map(&:first), 100)
 
-tier_1.each { |s, n| puts "Strategy: #{s.effects.inspect} won #{n} times" }
+#tier_1.each { |s, n| puts "Strategy: #{s.effects.inspect} won #{n} times" }
 
-puts Time.now.to_i - t
+#puts Time.now.to_i - t

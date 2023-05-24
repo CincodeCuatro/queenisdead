@@ -135,3 +135,8 @@ class Worker < Piece
     end
   end
 end
+
+
+### Parent class for cards
+class Card < Piece
+end

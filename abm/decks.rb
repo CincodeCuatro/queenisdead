@@ -1,4 +1,6 @@
-require_relative 'cards'
+require_relative 'buildings'
+require_relative 'retainers'
+require_relative 'crises'
 
 
 ###########################
@@ -69,6 +71,23 @@ class RetainersDeck < Deck
     add_cards(Monk, 2)
     add_cards(Physician, 1)
     add_cards(Rogue, 1)
+    @cards.shuffle!
+  end
+end
+
+
+
+######################
+### Crisis Deck ###
+######################
+
+class CrisisDeck < Deck
+  def initialize(board)
+    super(board)
+    add_cards(Regecide, 1)
+    add_cards(Blight, 1)
+    add_cards(Plague, 1)
+    add_cards(Powderplot, 1)
     @cards.shuffle!
   end
 end

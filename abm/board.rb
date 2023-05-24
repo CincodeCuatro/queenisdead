@@ -9,6 +9,7 @@ class Board
   def inspect = "#{self.class.to_s.upcase}-#{self.object_id}"
 
   attr_reader(*[
+    :game,
     :season, :activeCrisis, :pastCrises, :sentencing, :year, :firstCrown, :crownTicker,
     :buildingsDeck, :retainersDeck, :lawsDeck, :crisesDeck,
     :buildings, :court, :campaign, :crypt, :dungeon,
@@ -16,8 +17,11 @@ class Board
     :currentLaws, :coffer, :buildQueue, :officeActionLocks
   ])
 
-  def initialize
-    #Trackers
+  def initialize(game)
+    # Game
+    @game = game
+
+    # Trackers
     @season = :summer
     @activeCrisis = nil
     @pastCrises = []
@@ -29,12 +33,12 @@ class Board
     # Decks
     @buildingsDeck = BuildingsDeck.new(self)
     @retainersDeck = RetainersDeck.new(self)
+    @crisisDeck = CrisisDeck.new(self)
     # @lawsDeck = LawsDeck.new # TODO: 
-    # @crisesDeck = CrisesDeck # TODO: 
 
     # Spaces
     @buildings = Ring.new(:buildings, 15)
-    @court = Ring.new(:court, 15)
+    @court = Ring.new(:court, 13)
     @campaign = Box.new(:campaign, 6, -> _x, _xs { raise "No space left in Campaign" })
     @dungeon = Box.new(:dungeon, 3, -> x, xs { xs.shift&.kill; xs << x })
     @crypt = Bag.new(:crypt)
@@ -104,7 +108,7 @@ class Board
   # Realm upkeep increases with each building constructed, must be paid in full to avert crisis at the end of a year (3rd season)
   def realm_upkeep
     upkeep_base = { gold: 2, food: 2 }
-    upkeep_base.transform_values { |v| v * @buildings.length } 
+    upkeep_base.transform_values { |v| v * constructed_buildings.length } 
   end
 
   # Check if office action has already been used this round
@@ -119,6 +123,7 @@ class Board
       advance_year!
       advance_crisis!
       unlock_buildings!
+      collect_upkeep!
     end
     advance_season!
     unlock_office_actions!
@@ -155,11 +160,24 @@ class Board
   # Go through each built-building and give players with workers there their payout
   def distribute_resources! = constructed_buildings.map(&:output)
 
+  def collect_upkeep!
+    upkeep_amount = realm_upkeep
+    per_player_amount = upkeep_amount.transform_values { |v| v / @game.players.length }
+    @game.players.each { |player|
+      from_player = player.request_upkeep(per_player_amount)
+      upkeep_amount.merge! { |_, v1, v2| v1 - v2 }
+    }
+    activate_crisis if upkeep_amount.values.sum > 0
+  end
+
 
   ### Board State Helper Methods ###
   
   # Draws crisis card and sets to active
-  def activate_crisis = @activeCrisis = @crisesDeck.draw
+  def activate_crisis
+    @activeCrisis = @crisisDeck.draw
+    @activeCrisis.activate
+  end
 
   # Priest position may set sentencing as an action. Fine is 10 gold paid to priest, prison sends character to dungeon, and death kills character. Dungeon overflow also results in death
   def set_sentencing(severity)
