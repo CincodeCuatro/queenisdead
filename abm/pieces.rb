@@ -42,7 +42,7 @@ class Character < Piece
   end
 
   #handles movement for character around the board
-  def move(location, pos=nil)
+  def move(location, pos=nil, auto_heir_promote=true)
     old_location = @location
     @location&.remove(self) 
     if location.nil?
@@ -71,7 +71,7 @@ class Character < Piece
         else raise "Unknown location: #{location}"
       end
     end
-    if old_location == b.crown && !b.heir.empty?
+    if auto_heir_promote && old_location == b.crown && !b.heir.empty?
       heir = b.heir.contents
       heir.lockless_move(:crown)
       @player.game.add_to_log("Heir, #{heir.name}, has been crowned")
@@ -105,10 +105,10 @@ class Character < Piece
     }[@location]
   end
 
-  def kill
+  def kill(auto_heir_promote=true)
     unlock
     @retainer.contents&.reshuffle
-    move(:crypt)
+    move(:crypt, nil, auto_heir_promote)
   end
 
   #Handles punishment for a character based on sentencing severity on the board

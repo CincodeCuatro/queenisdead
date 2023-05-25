@@ -190,7 +190,8 @@ class Player
       court_actions,
       campaign_actions,
       recall_character_actions,
-      move_to_office_actions
+      move_to_office_actions,
+      challenge_crown_actions
     ]
   end
 
@@ -368,6 +369,26 @@ class Player
         appoint_office_effects + { prestige: -2 }
       )
     }
+  end
+
+  # Challenge the crown and take their place if successful
+  def challenge_crown_actions
+    return [] if @board.crown.contents.nil?
+    characters_in_court = @characters.filter { |c| c.where_am_i? == :court && !c.locked? }
+    return [] if characters_in_court.empty? || @coffer.prestige < @board.crown.contents.player.coffer.prestige
+    c = characters_in_court.first
+    [ ChallengeAction.new(
+      Action.new(self,
+        "#{c.name} successfully usurped the crown, all hail the new crown!",
+        ->{ @board.crown.contents.kill(false); c.move(:crown) },
+        { power: 5, risk: 6, karma: calc_karma([@board.crown.contents.player], -1) }
+      ),
+      Action.new(self,
+        "#{c.name} died during an attempted coup",
+        ->{ c.kill },
+        {}
+      )
+    )]
   end
 
   def become_priest_effects = Effects.new({ power: 3, gold: 2, risk: 2 })

@@ -1,14 +1,14 @@
 require_relative 'game'
 require_relative 'actions'
-require_relative 'not_terrible_strats'
 
 
+=begin
 
 strats = load_strats("strats-run0.json")
 g = Game.new(4, Array.new(4) { strats.sample })
 g.play!
 g.print_log
-
+=end
 
 
 def find_best_strategies(strategies, top_n)
@@ -29,9 +29,10 @@ def find_best_strategies(strategies, top_n)
 end
 
 =begin
+strats = load_strats("strats-run0.json")
 game_ends = Hash.new(0)
 100.times {
-  strats = Array.new(4) { Not_terrible_strats.sample }
+  strats = Array.new(4) { strats.sample }
   g = Game.new(4, strats)
   ge, _ = g.play!
   game_ends[ge] += 1
@@ -39,16 +40,16 @@ game_ends = Hash.new(0)
 puts game_ends
 =end
 
-=begin
+# =begin
 t = Time.now.to_i
 
-tier_3 = Array.new(50) { Priorities.new }
-tier_2 = find_best_strategies(tier_3, 10)
-#tier_1 = find_best_strategies(tier_2.map(&:first), 100)
+tier_3 = Array.new(10000) { Priorities.new }
+tier_2 = find_best_strategies(tier_3, 1000)
+tier_1 = find_best_strategies(tier_2.map(&:first), 100)
 
-tier_2.each { |s, n| puts "Strategy: #{s.show} won #{n} times" }
-save_strats("strats-run0.json", tier_2.map(&:first))
+tier_1.each { |s, n| puts "Strategy: #{s.show} won #{n} times" }
+save_strats("strats-run1.json", tier_1.map(&:first))
 
 
 puts Time.now.to_i - t
-=end
+# =end
