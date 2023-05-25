@@ -1,23 +1,20 @@
-# queenisdead
-Agent based Model for testing board game
-
 
 [x] Tithe/Blackmail check if actions are even sensible
 
 [x] Color Log Output by Player
 
-[ ] Implement campaign challenge each round
+[x] Implement campaign challenge each round
 
-[ ] Cost prestige to appoint to office
+[x] Cost prestige to appoint to office
 
-[ ] Challenge Crown
-  [ ] Action (challenge)
+[x] Challenge Crown
+  [x] Action (challenge)
 
-[ ] Crisis
-  [ ] Cards
-  [ ] Crisis Actions
+[x] Crisis
+  [x] Cards
+  [x] Crisis Actions
 
-[ ] Realm Upkeep
+[x] Realm Upkeep
 
 [x] Reputation System
 
