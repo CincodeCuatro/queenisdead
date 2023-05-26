@@ -3,6 +3,10 @@ require_relative 'coffer'
 require_relative 'actions'
 
 
+##############
+### Player ###
+##############
+
 class Player
 
   # Print smaller info for debug (remove for final project)
@@ -77,15 +81,15 @@ class Player
 
   # Print all possible actions for this player (for debugging)
   def dump_actions
-    @game.add_to_log("DUMPING ACTIONS FOR PLAYER #{id}:")
+    @game.log("DUMPING ACTIONS FOR PLAYER: ", id)
     actions
       .sort_by { |a| -1 * action_score(a) }
-      .each { |a| @game.add_to_log("\t\t#{action_score(a)} - #{a.desc} - #{a.effects.show}") }
+      .each { |a| @game.log('ACTION: ', "#{action_score(a)} - #{a.desc} - #{a.effects.show}") }
   end
 
   # Used to peek inside and see a player's state (for debugging)
   def status
-    @game.add_to_log(["\tPlayer #{id}:", coffer_status, worker_status, character_status, actions_status].join(' '))
+    @game.log("PLAYER #{id}:", [coffer_status, worker_status, character_status, actions_status])
   end
 
 
@@ -148,15 +152,14 @@ class Player
   end
 
   def request_upkeep(amount)
-    @game.add_to_log("\t\t\t\t" + amount.inspect)
-    status
+    @game.log("UPKEEP AMOUNT: ", amount)
     gold_given = 0
     [0.5, 1, 2, 3].each { |x| gold_given = amount[:gold] * x if @coffer.gold > (amount[:gold] * x) }
     food_given = 0
     [0.5, 1, 2, 3].each { |x| food_given = amount[:food] * x if @coffer.food > (amount[:food] * x) }
     contribution = { gold: gold_given, food: food_given }
     @coffer.take(contribution)
-    @game.add_to_log("Player #{id} contributed #{contribution.inspect} to the realm's upkeep")
+    @game.log("Player #{id} contributed: ", contribution.inspect)
     return contribution
   end
   
@@ -374,6 +377,7 @@ class Player
   # Challenge the crown and take their place if successful
   def challenge_crown_actions
     return [] if @board.crown.contents.nil?
+    return [] if @board.crown.contents.player == self
     characters_in_court = @characters.filter { |c| c.where_am_i? == :court && !c.locked? }
     return [] if characters_in_court.empty? || @coffer.prestige < @board.crown.contents.player.coffer.prestige
     c = characters_in_court.first
@@ -501,11 +505,11 @@ class Player
     .filter { |player| player.coffer.prestige <= @coffer.prestige }
     .map(&:characters)
     .flatten
-    .filter { |c| ![:hand, :crown, :dungeon, :crypt].include?(c.where_am_i?)  }
+    .filter { |c| ![:hand, :crown, :dungeon, :crypt, :commander].include?(c.where_am_i?)  }
     .map { |c|
       if from_crown
         Action.new(self,
-          "The Commander has punished Player #{c.player.id}",
+          "The Commander has punished Player #{c.player.id}'s character #{c.name} with #{@board.sentencing}",
           ->{
             c.punish
             @board.lock_office_action(:commander_punish)
@@ -525,7 +529,7 @@ class Player
             { reputation: -2, karma: calc_karma([c.player], -1) }
           ),
           Action.new(self,
-            "Player #{c.name} managed to escape the long arm of the law",
+            "Player #{c.player.id}'s character #{c.name} managed to escape the long arm of the law",
             ->{
               @board.lock_office_action(:commander_punish)
               c.player.change_rep(self, -1)

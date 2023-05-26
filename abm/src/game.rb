@@ -1,81 +1,13 @@
 require_relative 'board'
 require_relative 'player'
+require_relative 'log'
 require_relative 'utils'
 
-
-#####################
-### Win Coditions ###
-#####################
-
-=begin
-
-If the first monarch is able to hold the throne within their dynasty for 3 consecutive years, they win.
-
-If the crown is held by the same Dynasty for 6 consecutive seasons they win.
-
-If Crisis falls upon the realm 3 times everyone loses and the game is over.
-
-If every member of a single family Dynasty is imprisoned or killed, the current monarch has won.
-
-Else, the one who holds the throne at the end of the 5th year wins.
-
-=end
-
-
-=begin MOCKUP GAME INTERFACE
-
-GAME:
-    
-    
-CHARACTER:
-    move(location, pos=nil)
-    place_retainer(retainer)
-    remove_retainer
-    kill
-
-WORKER:
-    move(location)
-
-RETAINER:
-    reshuffle
-    move(location)
-
-BUILDING:
-    reshuffle
-    build(pos)
-    destroy
-    place_character(character)
-    place_worker(worker)
-    remove_character(character)
-    remove_worker(worker)
-
-CRYPT:
-    place_character(character)
-    remove_character(character)
-
-CAMPAIGN:
-    place_character(character)
-    remove_character(character)
-
-COURT:
-    place_character(character, pos)
-    remove_character(character)
-
-DUNGEON:
-    place_character(character)
-    remove_character(character)
-
-BUILDING_PLOTS:
-    place_building(building)
-    remove_building(building)
-
-
-
-=end
+#######################
+### Main Game Logic ###
+#######################
 
 class Game
-
-  attr_accessor :log
 
   # Print smaller info for debug (remove for final project)
   def inspect = "#{self.class.to_s.upcase}-#{self.object_id}"
@@ -85,9 +17,9 @@ class Game
   def initialize(player_num=4, priorities=[])
     @board = Board.new(self)
     @players = Array.new(player_num) { |i| Player.new(self, i, priorities[i]) }
-    @log = []
+    @log = EventLog.new
     @players.sample.characters.first.move(:crown)
-    add_to_log("Player #{@board.crown.contents.player.id} (#{@board.crown.contents.name}) is crowned")
+    log("Player #{@board.crown.contents.player.id} (#{@board.crown.contents.name}) is crowned")
   end
 
 
@@ -96,7 +28,7 @@ class Game
   # Checks if the game is over, if so returns the reason
   def game_end?
     return :fiveYears if @board.year >= 5 
-    return :crownWin if (@board.firstCrown && (@board.crownTicker >= 9)) || (@board.firstCrown == false && @board.crownTicker >= 6) # TODO: Something fucky here
+    return :crownWin if (@board.firstCrown && (@board.crownTicker >= 9)) || (@board.firstCrown == false && @board.crownTicker >= 6)
     return :crisisEnd if !@board.activeCrisis.nil? && @board.pastCrises.length >= 2
     return :familyExtinguished if @players.map(&:no_usable_characters?).any?
     return false
@@ -105,22 +37,27 @@ class Game
 
   ### Game Helper Methods ###
 
-  # Add a game event to the log
-  def add_to_log(item) = @log << item
+  # Logging helper
+  def log(val, state=nil)
+    if val.is_a?(String)
+      state ? @log.d(val, state) : @log.g(val)
+    elsif val.is_a?(Action)
+      @log.p(val.desc, val.player.id)
+    end
+  end
 
   # Print out the log of all the events that happened this game
-  def print_log = @log.each { |e| puts e }
+  def print_log(debug=false) = @log.pp(debug)
 
   # Add some info to the log at the start of every year
   def log_new_year
-    add_to_log("Start of year #{@board.year}")
-    add_to_log(@players.map(&:show).join("\t"))
+    log("Start of year #{@board.year}")
   end
 
    # Add some info to the log at the start of every season
    def log_new_season
-    add_to_log("Start of #{@board.season.upcase}")
-    add_to_log(@players.map(&:show).join("\t"))
+    log("Start of #{@board.season.upcase}")
+    log("Player Resources: ", @players.map(&:show).join(' '))
   end
 
   # Used as coin flip for failable actions
@@ -145,20 +82,20 @@ class Game
     case game_end_reason
     when :fiveYears
       winner = @board.crown.contents&.player&.id
-      add_to_log("Game ended: 5 years have passed #{winner ? "(Player #{winner} won)" : '' }")
+      log("Game ended: 5 years have passed #{winner ? "(Player #{winner} won)" : '' }")
       return [game_end_reason, winner]
     when :crownWin
       winner = @board.crown.contents.player.id
       crown = @board.crown.contents.name
-      add_to_log("Game ended: Player #{winner} (#{crown}) successfully held the throne for #{@board.firstCrown ? 3 : 2} years")
+      log("Game ended: Player #{winner} (#{crown}) successfully held the throne for #{@board.firstCrown ? 3 : 2} years")
       return [game_end_reason, winner]
     when :crisisEnd
-      add_to_log("Game ended: realm in crisis")
+      log("Game ended: realm in crisis")
       return [game_end_reason, nil]
     when :familyExtinguished
       crown = @board.crown.contents
       loser = @players.filter(&:no_usable_characters?).first.id
-      add_to_log("Game ended: Player #{loser}'s dynasty is dead #{crown ? "(Player #{crown.player.id} won with (#{crown.name}) on the throne)" : '' }")
+      log("Game ended: Player #{loser}'s dynasty is dead #{crown ? "(Player #{crown.player.id} won with (#{crown.name}) on the throne)" : '' }")
       return [game_end_reason, crown ? crown.player.id : nil]
     end
   end
@@ -166,7 +103,7 @@ class Game
   # Play a single round
   def play_round!
     log_new_year if @board.beginning_of_year?
-
+    log_new_season
     if !@board.crown.empty?
       crown_player = @board.crown.contents.player
       crown_player.take_turn!
@@ -174,9 +111,7 @@ class Game
     else
       @players.each { |player| player.take_turn! }
     end
-
     @board.bookkeeping!
-    log_new_season
   end
 
 end

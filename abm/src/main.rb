@@ -1,55 +1,48 @@
 require_relative 'game'
-require_relative 'actions'
+require_relative 'effects'
 
+############
+### Main ###
+############
 
-=begin
+def sim(player_num, strats_pool=nil, debug=false)
+  strats = Array.new(player_num) { strats_pool ? strats_pool.sample : Priorities.new }
+  game = Game.new(player_num, strats)
+  outcome = game.play!
+  game.print_log(debug)
+  return outcome
+end
 
-strats = load_strats("strats-run0.json")
-g = Game.new(4, Array.new(4) { strats.sample })
-g.play!
-g.print_log
-=end
-
-
-def find_best_strategies(strategies, top_n)
-  wins = strategies.map { |s| [s, 0] }.to_h
-  strategies.each_with_index do |s, i|
-    100.times do
-      g = Game.new(4, [s] + Array.new(3) { (strategies-[s]).sample } )
-      win_reason, winner = g.play!
-      wins[s] += 1 if winner == 0
-    end
-    puts "Strategy #{i+1} of #{strategies.length} done."
-  end
-  return wins
-    .to_a
+def arena(strats_pool, top_n, game_num)
+  strats_pool
+    .map { |s| [s, calc_performance(s, game_num, strats_pool)] }
     .sort_by { |s, n| n }
     .reverse
     .take(top_n)
 end
 
-=begin
-strats = load_strats("strats-run0.json")
-game_ends = Hash.new(0)
-100.times {
-  strats = Array.new(4) { strats.sample }
-  g = Game.new(4, strats)
-  ge, _ = g.play!
-  game_ends[ge] += 1
-}
-puts game_ends
-=end
+def calc_performance(strat, game_num=100, strats_pool=nil)
+  strats_pool ||= Array.new(game_num) { Priorities.new }
+  strats_pool -= [strat]
+  wins = 0
+  game_num.times do
+    other_strats = Array.new(player_num-1) { strats_pool.sample }
+    game = Game.new(4, [s] + other_strats)
+    _, winner = game.play!
+    wins += 1 if winner == 0
+  end
+  return game_num.to_f / wins
+end
 
-# =begin
-t = Time.now.to_i
+def game_ends(strats_pool=nil, game_num=100)
+  strats_pool ||= Array.new(game_num) { Priorities.new }
+  game_ends = Hash.new(0)
+  game_num.times {
+    strats = Array.new(4) { strats_pool.sample }
+    game = Game.new(4, strats)
+    end_type, _ = game.play!
+    game_ends[end_type] += 1
+  }
+  return game_ends
+end
 
-tier_3 = Array.new(10000) { Priorities.new }
-tier_2 = find_best_strategies(tier_3, 1000)
-tier_1 = find_best_strategies(tier_2.map(&:first), 100)
-
-tier_1.each { |s, n| puts "Strategy: #{s.show} won #{n} times" }
-save_strats("strats-run1.json", tier_1.map(&:first))
-
-
-puts Time.now.to_i - t
-# =end

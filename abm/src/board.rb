@@ -1,7 +1,10 @@
-require_relative 'piece_containers'
+require_relative 'containers'
 require_relative 'decks'
 require_relative 'coffer'
 
+#############
+### Board ###
+#############
 
 class Board
 
@@ -167,7 +170,7 @@ class Board
         case roll
         when 1
           c.kill
-          @game.add_to_log("#{c.name} (Player #{c.player.id}) has died on campaign")
+          @game.log("#{c.name} (Player #{c.player.id}) has died on campaign")
         when (2..5)
           c.player.give({ gold: (roll + 1) })
         when 6
@@ -175,7 +178,7 @@ class Board
         end
       else
         c.kill
-        @game.add_to_log("#{c.name} (Player #{c.player.id}) has died on starved to death on campaign")
+        @game.log("#{c.name} (Player #{c.player.id}) has died on starved to death on campaign")
       end
     end
   end
@@ -185,7 +188,7 @@ class Board
 
   def collect_upkeep!
     upkeep_amount = realm_upkeep
-    @game.add_to_log("Time to collect the realm's upkeep! #{upkeep_amount[:gold]} gold & #{upkeep_amount[:food]} food needed...")
+    @game.log("Time to collect the realm's upkeep! #{upkeep_amount[:gold]} gold & #{upkeep_amount[:food]} food needed...")
     
     treasury_gold_contribution = [@coffer.gold, upkeep_amount[:gold]].min
     @coffer.take({gold: treasury_gold_contribution})
@@ -193,19 +196,19 @@ class Board
     treasury_food_contribution = [@coffer.food, upkeep_amount[:food]].min
     @coffer.take({food: treasury_food_contribution})
     upkeep_amount[:food] -= treasury_food_contribution
-    @game.add_to_log("#{treasury_gold_contribution} gold & #{treasury_food_contribution} food has been paid out of the royal treasury. #{upkeep_amount[:gold]} gold & #{upkeep_amount[:food]} food still needed...")
+    @game.log("#{treasury_gold_contribution} gold & #{treasury_food_contribution} food has been paid out of the royal treasury. #{upkeep_amount[:gold]} gold & #{upkeep_amount[:food]} food still needed...")
 
     per_player_amount = upkeep_amount.transform_values { |v| v / @game.players.length }
     @game.players.each { |player|
       from_player = player.request_upkeep(per_player_amount)
       from_player.each {|k, v| upkeep_amount[k] -= v }
     }
-    @game.add_to_log("Upkeep balance #{upkeep_amount}")
+    @game.log("Upkeep balance: ", upkeep_amount)
     if upkeep_amount.values.sum > 0
-      @game.add_to_log("Players didn't contribute enough upkeep")
+      @game.log("Players didn't contribute enough upkeep")
       activate_crisis
     else
-      @game.add_to_log("Players have contributed enough upkeep. The realm is safe (for now...)")
+      @game.log("Players have contributed enough upkeep. The realm is safe (for now...)")
     end
   end
 

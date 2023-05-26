@@ -1,6 +1,9 @@
-require_relative 'piece_containers'
+require_relative 'containers'
 require_relative 'utils'
 
+##############
+### Pieces ###
+##############
 
 # An item on the board (a building card, a character, a worker, or a retainer card) that has a location and can be moved
 class Piece
@@ -74,7 +77,7 @@ class Character < Piece
     if auto_heir_promote && old_location == b.crown && !b.heir.empty?
       heir = b.heir.contents
       heir.lockless_move(:crown)
-      @player.game.add_to_log("Heir, #{heir.name}, has been crowned")
+      @player.game.log("Heir, #{heir.name}, has been crowned")
     end
     lock
   end

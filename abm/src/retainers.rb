@@ -6,7 +6,6 @@ require_relative 'actions'
 ### Retainer Cards ###
 ######################
 
-
 ### Retainer card base class
 
 class Retainer < Card

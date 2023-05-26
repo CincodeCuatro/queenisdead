@@ -1,0 +1,53 @@
+#!/usr/bin/ruby
+
+require 'optparse'
+require_relative 'src/main'
+require_relative 'src/utils'
+
+mode = ARGV.shift
+opts = { sim_num: 100, player_num: 4, debug: false, strats_out: 'strats_output.json' }
+OptionParser.new { |_opts|
+  _opts.on("-nNUM", "--sim-num=NUM", "Number of simulation to run") { |n| opts[:sim_nums] = n.to_i }
+  _opts.on("-pNUM", "--play-num=NUM", "Number of players") { |n| opts[:player_num] = n.to_i }
+  _opts.on("-tNUM", "--top=NUM", "Take top N strats") { |n| opts[:top_n] = n.to_i }
+  _opts.on("-iFILENAME", "--input=FILENAME", "Input set of strategies") { |i| opts[:strats_in] = i }
+  _opts.on("-oFILENAME", "--output=FILENAME", "Output set of strategies") { |o| opts[:strats_out] = o }
+  _opts.on("-d", "--debug", "Print debug info") { |d| opts[:debug] = d }
+}.parse!(ARGV)
+
+
+case mode
+
+# Run a single simulation and print out its log
+when 'sim' 
+  strats_pool = opts[:strats_in] ? load_strats(opts[:strats_in]) : nil
+  sim(opts[:player_num], strats_pool, opts[:debug])
+
+# Filter an input set of strats by playing them against each other and picking the best
+when 'arena'
+  if opts[:strats_in].nil?
+    puts "Error: must provide input file with -i"
+    exit
+  end
+  strats_pool = load_strats(opts[:strats_in])
+  opts[:top_n] ||= opts[:sim_num] / 4
+  survivors = arena(strats_pool, opts[:top_n], opts[:sim_num])
+  save_strats(opts[:strats_out], survivors)
+
+# Run many sims and print info about how they ended
+when 'end-stats'
+  strats_pool = opts[:strats_in] ? load_strats(opts[:strats_in]) : nil
+  results = game_ends(strats_pool, opts[:sim_num])
+  results.each { |k, v| puts "Ending #{k}: #{v}" }
+
+# Print usage info
+when 'help'
+  puts "Usage: tqid MODE OPTS"
+  puts "Possible modes:"
+  puts "\tsim\trun a single simulation and print its log"
+  puts "\tarena\tpit a set of strategies against each other and save the best into another file"
+  puts "\tend-stats\trun many simulations and print statistics about how they ended"
+  puts "\thelp\tprint usage info"
+else
+  puts "Unknown mode '#{mode}' (try 'tqid help' for usage info)"
+end

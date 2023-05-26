@@ -1,3 +1,8 @@
+
+##############
+### Coffer ###
+##############
+
 #Tracks resources and transactions for each player and Treasury of the Crown
 class Coffer
   attr_reader :gold, :food, :prestige
