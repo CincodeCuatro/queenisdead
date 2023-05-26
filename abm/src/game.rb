@@ -17,7 +17,7 @@ class Game
   def initialize(player_num=4, priorities=[])
     @board = Board.new(self)
     @players = Array.new(player_num) { |i| Player.new(self, i, priorities[i]) }
-    @log = EventLog.new
+    @eventLog = EventLog.new
     @players.sample.characters.first.move(:crown)
     log("Player #{@board.crown.contents.player.id} (#{@board.crown.contents.name}) is crowned")
   end
@@ -40,14 +40,14 @@ class Game
   # Logging helper
   def log(val, state=nil)
     if val.is_a?(String)
-      state ? @log.d(val, state) : @log.g(val)
+      state ? @eventLog.d(val, state) : @eventLog.g(val)
     elsif val.is_a?(Action)
-      @log.p(val.desc, val.player.id)
+      @eventLog.p(val.desc, val.player.id)
     end
   end
 
   # Print out the log of all the events that happened this game
-  def print_log(debug=false) = @log.pp(debug)
+  def print_log(debug=false) = @eventLog.pp(debug)
 
   # Add some info to the log at the start of every year
   def log_new_year
@@ -78,6 +78,8 @@ class Game
       play_round!
       rounds += 1
     end
+
+    @players.each(&:status)
 
     case game_end_reason
     when :fiveYears

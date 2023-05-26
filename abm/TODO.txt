@@ -1,4 +1,6 @@
 
+To log a single simulation in the terminal: ruby tqid sim -i strats-run1.json -d > output.txt
+
 [ ] Output log of single simulation and save to file
 
 [ ] Simulate 100 games with 3,4,5,6,7 players and view ending resources, characters alive, average turns to completion, and end condition

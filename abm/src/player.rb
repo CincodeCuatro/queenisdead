@@ -610,7 +610,7 @@ class Player
     return [] if !@board.office_action_available?(:crown_heir)
     @board.court.get_all.map { |c|
       Action.new(self,
-        "The Crown has named #{c.name} (PLayer: #{c.player.id}) as their successor",
+        "The Crown has named #{c.name} (Player: #{c.player.id}) as their successor",
         ->{
           @board.heir.contents&.move(nil)
           c.lockless_move(:heir)

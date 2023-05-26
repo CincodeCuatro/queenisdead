@@ -110,7 +110,7 @@ class Board
 
   # Realm upkeep increases with each building constructed, must be paid in full to avert crisis at the end of a year (3rd season)
   def realm_upkeep
-    upkeep_base = { gold: 1, food: 1 }
+    upkeep_base = { gold: 2, food: 2 }
     upkeep_base.transform_values { |v| v * constructed_buildings.length } 
   end
 
@@ -139,10 +139,11 @@ class Board
   # Incremement the year counter
   def advance_year! = @year += 1
 
+
   # Seasons advance after every player has taken their turn, after three seasons a year has passed. 
   def advance_season!
     seasons = [:summer, :harvest, :winter]
-    @season = seasons[(seasons.index(@season) + 1) % seasons.length]    
+    @season = seasons[(seasons.index(@season) + 1) % seasons.length]
   end
 
   # Clear active crisis at end of year
@@ -178,7 +179,7 @@ class Board
         end
       else
         c.kill
-        @game.log("#{c.name} (Player #{c.player.id}) has died on starved to death on campaign")
+        @game.log("#{c.name} (Player #{c.player.id}) has starved to death on campaign")
       end
     end
   end
